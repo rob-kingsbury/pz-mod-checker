@@ -12,10 +12,11 @@ changes:
 
   - id: b42-10-oncreate-signature
     type: deprecated
-    severity: warning
+    severity: info
     since: "42.10.0"
     description: "OnCreate for buildable tiles now receives table {thumpable, craftrecipedata, character} instead of single object"
-    pattern: "OnCreate"
+    pattern: "function\\s+\\w*[Oo]n[Cc]reate\\s*\\("
+    regex: true
     scan: "*.lua"
     context: "OnCreate signature changed in 42.10 — verify your OnCreate handlers accept a table"
     replacement: "function myOnCreate(args) local thumpable = args.thumpable; local data = args.craftrecipedata; local character = args.character end"

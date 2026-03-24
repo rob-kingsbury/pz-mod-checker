@@ -13,12 +13,12 @@ from pathlib import Path
 from .manager import (
     ModList,
     get_default_txt_path,
-    get_zomboid_dir,
     load_profile,
     read_mod_list,
     save_profile,
     write_mod_list,
 )
+from .paths import get_zomboid_dir
 from .scanner.discovery import discover_mods
 
 
@@ -44,6 +44,7 @@ class BisectState:
     created_at: str
     backup_profile: str
     pid: int
+    dependency_groups: list[list[str]] = field(default_factory=list)
 
 
 # ---------------------------------------------------------------------------
@@ -87,6 +88,7 @@ def load_state(zomboid_dir: Path | None = None) -> BisectState | None:
             created_at=data["created_at"],
             backup_profile=data["backup_profile"],
             pid=data["pid"],
+            dependency_groups=data.get("dependency_groups", []),
         )
     except (json.JSONDecodeError, KeyError, TypeError):
         return None
@@ -188,8 +190,13 @@ def _next_round(
     mod_dirs: list[Path] | None = None,
 ) -> BisectState:
     """Split suspects and write next test set."""
-    # Build dependency groups for remaining suspects only
-    groups = _build_dependency_groups(state.suspects, mod_dirs)
+    # Filter cached dependency groups to only include current suspects
+    suspect_set = set(state.suspects)
+    groups = []
+    for group in state.dependency_groups:
+        filtered = [m for m in group if m in suspect_set]
+        if filtered:
+            groups.append(filtered)
 
     # Split groups in half
     mid = len(groups) // 2
@@ -395,6 +402,7 @@ def bisect_start(
         created_at=datetime.now(timezone.utc).isoformat(),
         backup_profile="_bisect_backup",
         pid=os.getpid(),
+        dependency_groups=groups,
     )
     save_state(state, zdir)
     return state

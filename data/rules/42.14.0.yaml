@@ -15,7 +15,7 @@ changes:
     severity: breaking
     since: "42.14.0"
     description: ".223 ammunition items removed from game — use 5.56 instead"
-    pattern: "\\.223|Bullets223|223Rounds|223Box|223Carton"
+    pattern: "\\b223\\b|Bullets223|223Rounds"
     regex: true
     scan: "*.lua"
     context: ".223 ammo removed in 42.14, replaced with 5.56"
@@ -45,7 +45,7 @@ changes:
 
   - id: b42-14-bakingtray-fluid-removed
     type: api_removal
-    severity: warning
+    severity: info
     since: "42.14.0"
     description: "Fluid container properties removed from BakingTray, BakingPan, RoastingPan"
     pattern: "BakingTray|BakingPan|RoastingPan"
@@ -86,12 +86,3 @@ changes:
     path: "media/scripts/"
     context: "Item type renamed in 42.14"
 
-  - id: b42-14-bullets-to-rounds
-    type: api_rename
-    severity: info
-    since: "42.14.0"
-    description: "Bullets renamed to Rounds in recipe text strings"
-    old_pattern: "Bullets"
-    new_name: "Rounds"
-    scan: "*.lua"
-    context: "Ammunition terminology changed in 42.14"

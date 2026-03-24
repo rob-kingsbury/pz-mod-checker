@@ -87,7 +87,7 @@ def _cmd_scan(args: argparse.Namespace) -> int:
     if args.format == "json":
         print(findings_to_json(results))
     else:
-        use_color = not args.no_color
+        use_color = not args.no_color and sys.stdout.isatty()
         print_scan_results(results, use_color=use_color, verbose=args.verbose)
 
     # Workshop enrichment
@@ -156,7 +156,7 @@ def _cmd_diagnose(args: argparse.Namespace) -> int:
         return 1 if diagnosis.mod_errors else 0
 
     # CLI output
-    use_color = not args.no_color
+    use_color = not args.no_color and sys.stdout.isatty()
     _print_diagnosis(diagnosis, use_color)
 
     # Auto-disable offer
@@ -329,9 +329,6 @@ def _print_diagnosis(diagnosis, use_color: bool = True) -> None:
     C_DIM = "\033[2m" if use_color else ""
     C_RST = "\033[0m" if use_color else ""
 
-    if use_color and sys.stdout.isatty() is False:
-        C_RED = C_YEL = C_CYA = C_GRN = C_BLD = C_DIM = C_RST = ""
-
     print()
     print(f"{C_BLD}PZ Mod Checker — Diagnosis{C_RST}")
     print(f"  Session: {diagnosis.session_start}")
@@ -382,9 +379,6 @@ def _print_workshop_suggestions(suggestions, use_color: bool = True) -> None:
     C_BLD = "\033[1m" if use_color else ""
     C_RST = "\033[0m" if use_color else ""
 
-    if use_color and sys.stdout.isatty() is False:
-        C_YEL = C_GRN = C_DIM = C_BLD = C_RST = ""
-
     investigate = [s for s in suggestions if s.action == "investigate"]
     ok = [s for s in suggestions if s.action == "likely_ok"]
     no_data = [s for s in suggestions if s.action == "no_data"]
@@ -426,8 +420,9 @@ def _offer_auto_disable(diagnosis, name_to_id: dict[str, str], zomboid_dir: Path
 
     if answer == "y":
         # Save a backup profile first
+        from .manager import get_default_txt_path as _get_dtp
         save_profile("pre-fix-auto", zomboid_dir=zomboid_dir)
-        mod_list = disable_mods(to_disable, zomboid_dir=zomboid_dir)
+        mod_list = disable_mods(to_disable, path=_get_dtp(zomboid_dir))
         print(f"Disabled {len(to_disable)} mod(s). Profile 'pre-fix-auto' saved.")
         print(f"Total active: {len(mod_list.mods)}")
     else:

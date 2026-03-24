@@ -2,12 +2,27 @@
 
 from __future__ import annotations
 
+import re
 import shutil
+import sys
 from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
 
+from .paths import get_zomboid_dir
 from .scanner.discovery import discover_mods
+
+
+# ---------------------------------------------------------------------------
+# Validation
+# ---------------------------------------------------------------------------
+
+_MOD_ID_UNSAFE_RE = re.compile(r'[\n\r{}]')
+
+
+def _validate_mod_id(mod_id: str) -> bool:
+    """Check that a mod ID is safe to write to config files."""
+    return bool(mod_id) and not _MOD_ID_UNSAFE_RE.search(mod_id)
 
 
 # ---------------------------------------------------------------------------
@@ -34,11 +49,6 @@ class Profile:
 # ---------------------------------------------------------------------------
 # Path helpers
 # ---------------------------------------------------------------------------
-
-def get_zomboid_dir() -> Path:
-    """Return the Zomboid user directory."""
-    return Path.home() / "Zomboid"
-
 
 def get_default_txt_path(zomboid_dir: Path | None = None) -> Path:
     """Return the path to default.txt (active mod list)."""
@@ -164,6 +174,9 @@ def write_mod_list(mod_list: ModList, path: Path | None = None) -> None:
 
     lines = [f"VERSION = {mod_list.version},", "", "mods", "{"]
     for mod_id in mod_list.mods:
+        if not _validate_mod_id(mod_id):
+            print(f"Warning: Skipping invalid mod ID: {mod_id!r}", file=sys.stderr)
+            continue
         lines.append(f"    mod = {mod_id},")
     lines.append("}")
     lines.append("")
@@ -209,6 +222,9 @@ def enable_mods(mod_ids: list[str], path: Path | None = None) -> ModList:
     mod_list = read_mod_list(path)
     existing = set(mod_list.mods)
     for mod_id in mod_ids:
+        if not _validate_mod_id(mod_id):
+            print(f"Warning: Invalid mod ID rejected: {mod_id!r}", file=sys.stderr)
+            continue
         if mod_id not in existing:
             mod_list.mods.append(mod_id)
             existing.add(mod_id)

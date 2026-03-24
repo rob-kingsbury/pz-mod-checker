@@ -11,21 +11,18 @@ changes:
   # --- TRANSLATION FORMAT ---
 
   - id: b42-15-translation-json
-    type: deprecated
-    severity: warning
+    type: structure
+    severity: info
     since: "42.15.0"
-    description: "Translation files should use .json format instead of .txt"
-    pattern: "Translate"
-    scan: "*.txt"
-    path: "media/lua/shared/Translate/"
-    context: "42.15 moved translation files to JSON format"
-    replacement: "Convert .txt translation files to .json format"
+    description: "42.15+ uses JSON translation files — check that translations are in .json format"
+    check: dir_exists
+    path: "42/media/lua/shared/Translate/"
 
   # --- GAME MODE RENAMES ---
 
   - id: b42-15-gamemode-builder
     type: api_rename
-    severity: warning
+    severity: info
     since: "42.15.0"
     description: "Builder game mode removed — replaced with new mode names"
     old_pattern: "\"Builder\""
@@ -35,7 +32,7 @@ changes:
 
   - id: b42-15-gamemode-survivor
     type: api_rename
-    severity: warning
+    severity: info
     since: "42.15.0"
     description: "Survivor game mode removed — replaced with new mode names"
     old_pattern: "\"Survivor\""

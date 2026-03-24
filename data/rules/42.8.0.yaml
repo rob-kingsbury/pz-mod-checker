@@ -15,7 +15,7 @@ changes:
     severity: breaking
     since: "42.8.0"
     description: "Attachments.lua removed — biome attachment system rewritten"
-    pattern: "require.*Attachments"
+    pattern: "require\\s*\\(\\s*[\"'].*Attachments[\"']"
     regex: true
     scan: "*.lua"
     context: "Biome attachment system completely rewritten in 42.8"
@@ -25,7 +25,7 @@ changes:
     severity: breaking
     since: "42.8.0"
     description: "Similar.lua removed — biome similarity system rewritten"
-    pattern: "require.*Similar"
+    pattern: "require\\s*\\(\\s*[\"'].*Similar[\"']"
     regex: true
     scan: "*.lua"
     context: "Biome similarity system rewritten in 42.8"
@@ -45,7 +45,7 @@ changes:
     type: api_removal
     severity: breaking
     since: "42.8.0"
-    description: "IronRod items removed (IronRod, IronRodHalf, IronRodQuarter, IronSlug)"
+    description: "IronRod items removed"
     pattern: "IronRod"
     scan: "*.lua"
     context: "Blacksmithing items removed in 42.8"

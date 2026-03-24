@@ -2,11 +2,11 @@
 
 from __future__ import annotations
 
-import platform
 import re
 from dataclasses import dataclass, field
 from pathlib import Path
 
+from .paths import get_zomboid_dir
 from .scanner.discovery import discover_mods
 from .scanner.mod_info import ModInfo
 
@@ -19,7 +19,7 @@ from .scanner.mod_info import ModInfo
 _SESSION_START_RE = re.compile(r"t:(\d+)>\s+(\d{2}-\d{2}-\d{4}\s+\d{2}:\d{2}:\d{2})")
 
 # PZ version string — must start at beginning or after "> " to avoid java.specification.version etc.
-_VERSION_RE = re.compile(r">\s*version=(\d+\.\d+\.\d+)\s")
+_VERSION_RE = re.compile(r">\s*version=(\d+\.\d+\.\d+)\b")
 
 # Mod loading line: LOG  : Mod   f:0, t:NNNNN> loading <mod_id>
 # Mod IDs can contain spaces, brackets, slashes — capture everything after "loading "
@@ -54,9 +54,6 @@ _TIMESTAMP_RE = re.compile(r"t:(\d+)>")
 _JAVA_EXCEPTION_RE = re.compile(
     r"(ERROR|SEVERE)\s*:.*ExceptionLogger\.logException\s*>\s*Exception\s+thrown"
 )
-
-# Severe runtime error
-_SEVERE_RE = re.compile(r"SEVERE:\s+(.*)")
 
 
 # ---------------------------------------------------------------------------
@@ -108,12 +105,6 @@ class SessionDiagnosis:
 # ---------------------------------------------------------------------------
 # Platform helpers
 # ---------------------------------------------------------------------------
-
-def get_zomboid_dir() -> Path:
-    """Return the Zomboid user directory for the current platform."""
-    # All platforms use ~/Zomboid
-    return Path.home() / "Zomboid"
-
 
 def get_console_log(zomboid_dir: Path | None = None) -> Path:
     """Return path to console.txt."""

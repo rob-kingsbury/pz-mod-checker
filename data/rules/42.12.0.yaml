@@ -36,7 +36,7 @@ changes:
 
   - id: b42-12-metalworking-renamed
     type: api_rename
-    severity: warning
+    severity: info
     since: "42.12.0"
     description: "Metalworking renamed to Blacksmithing in player-facing text"
     old_pattern: "Metalworking"

@@ -45,7 +45,8 @@ changes:
     severity: breaking
     since: "42.13.0"
     description: "Drunkenness stat replaced with CharacterStat.INTOXICATION"
-    old_pattern: "Drunkenness"
+    old_pattern: "getDrunkenness|setDrunkenness|Drunkenness\\s*="
+    regex: true
     new_name: "CharacterStat.INTOXICATION"
     scan: "*.lua"
     context: "Character stats refactored to CharacterStat enum in 42.13"
@@ -65,7 +66,8 @@ changes:
     severity: breaking
     since: "42.13.0"
     description: "BoredomLevel replaced with CharacterStat.BOREDOM"
-    old_pattern: "BoredomLevel"
+    old_pattern: "getBoredomLevel|setBoredomLevel|BoredomLevel\\s*="
+    regex: true
     new_name: "CharacterStat.BOREDOM"
     scan: "*.lua"
     context: "Character stats refactored in 42.13"
@@ -112,19 +114,6 @@ changes:
     new_name: "needToBeLearn"
     scan: "*.lua"
     context: "Old typo removed from CraftRecipeBuilder in 42.13"
-
-  # --- DISPLAY NAME DEPRECATION ---
-
-  - id: b42-13-displayname-deprecated
-    type: deprecated
-    severity: info
-    since: "42.13.0"
-    description: "DisplayName deprecated in item scripts — use translation files instead"
-    pattern: "DisplayName"
-    scan: "*.txt"
-    path: "media/scripts/"
-    context: "Use ItemName_{language}.txt translation files instead of DisplayName"
-    replacement: "Move display names to media/lua/shared/Translate/{language}/ItemName_{language}.txt"
 
   # --- SATCHEL BODY LOCATION ---
 

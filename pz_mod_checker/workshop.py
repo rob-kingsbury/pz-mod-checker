@@ -283,7 +283,11 @@ def _classify_mod(
     updated_since_b42 = meta.time_updated > _B42_RELEASE_EPOCH
 
     # Check for B42 keywords in tags and description
-    b42_tags = any("42" in tag.lower() or "b42" in tag.lower() for tag in meta.tags)
+    b42_tags = any(
+        tag.lower() in ("build 42", "b42", "build42", "42")
+        or tag.lower().startswith("b42")
+        for tag in meta.tags
+    )
     b42_in_desc = (
         "build 42" in meta.description_snippet.lower()
         or "b42" in meta.description_snippet.lower()
@@ -362,10 +366,10 @@ def check_workshop_updates(
 
     if use_cache:
         cached = load_cache()
-        for wid in list(ids_to_fetch):
+        for wid in ids_to_fetch:
             if wid in cached:
                 all_metadata[wid] = cached[wid]
-                ids_to_fetch.remove(wid)
+        ids_to_fetch = [wid for wid in ids_to_fetch if wid not in cached]
 
     # 3. Fetch remaining from API
     if ids_to_fetch:
