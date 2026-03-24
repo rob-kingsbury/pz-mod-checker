@@ -178,6 +178,202 @@ def test_check_api_removal():
         assert findings[0].line_number == 2
 
 
+def _make_mod_with_lua(tmp_path: Path, mod_id: str = "TestMod",
+                       lua_content: str = "", version_min: str = "",
+                       has_42: bool = False, has_common: bool = False) -> ModInfo:
+    """Helper: create a mod directory with optional Lua content and structure."""
+    mod_dir = tmp_path / mod_id
+    mod_dir.mkdir(exist_ok=True)
+    lua_dir = mod_dir / "media" / "lua" / "client"
+    lua_dir.mkdir(parents=True, exist_ok=True)
+    if lua_content:
+        (lua_dir / "main.lua").write_text(lua_content, encoding="utf-8")
+    if has_42:
+        (mod_dir / "42").mkdir(exist_ok=True)
+    if has_common:
+        (mod_dir / "common").mkdir(exist_ok=True)
+    raw = {"name": mod_id, "id": mod_id}
+    if version_min:
+        raw["versionMin"] = version_min
+    return ModInfo(mod_id=mod_id, name=mod_id, path=mod_dir,
+                   version_min=version_min, raw=raw)
+
+
+# --- Condition tests ---
+
+def test_condition_has_lua_pattern_match():
+    with tempfile.TemporaryDirectory() as tmp:
+        mod = _make_mod_with_lua(Path(tmp), lua_content="TraitFactory.addTrait()")
+        rule = Rule(id="test", type="structure", severity="warning", since="42.0.0",
+                    description="Test", check="dir_exists", path="missing/",
+                    condition={"has_lua_pattern": "TraitFactory"})
+        findings = check_mod(mod, RuleSet(rules=[rule]), PZVersion.parse("42.0.0"))
+        assert len(findings) == 1  # condition met, dir missing → finding
+
+
+def test_condition_has_lua_pattern_no_match():
+    with tempfile.TemporaryDirectory() as tmp:
+        mod = _make_mod_with_lua(Path(tmp), lua_content="-- no traits here")
+        rule = Rule(id="test", type="structure", severity="warning", since="42.0.0",
+                    description="Test", check="dir_exists", path="missing/",
+                    condition={"has_lua_pattern": "TraitFactory"})
+        findings = check_mod(mod, RuleSet(rules=[rule]), PZVersion.parse("42.0.0"))
+        assert len(findings) == 0  # condition not met → rule skipped
+
+
+def test_condition_has_lua_pattern_invalid_regex():
+    with tempfile.TemporaryDirectory() as tmp:
+        mod = _make_mod_with_lua(Path(tmp), lua_content="some code")
+        rule = Rule(id="test", type="structure", severity="warning", since="42.0.0",
+                    description="Test", check="dir_exists", path="missing/",
+                    condition={"has_lua_pattern": "[invalid regex"})
+        findings = check_mod(mod, RuleSet(rules=[rule]), PZVersion.parse("42.0.0"))
+        assert len(findings) == 1  # invalid regex → apply rule anyway
+
+
+def test_condition_has_files_in_dir_exists():
+    with tempfile.TemporaryDirectory() as tmp:
+        tmp_path = Path(tmp)
+        mod = _make_mod_with_lua(tmp_path)
+        tr_dir = mod.path / "media" / "lua" / "shared" / "Translate"
+        tr_dir.mkdir(parents=True)
+        (tr_dir / "EN.txt").write_text("test", encoding="utf-8")
+        rule = Rule(id="test", type="structure", severity="info", since="42.0.0",
+                    description="Test", check="dir_exists", path="missing/",
+                    condition={"has_files_in_dir": "media/lua/shared/Translate", "file_glob": "*.txt"})
+        findings = check_mod(mod, RuleSet(rules=[rule]), PZVersion.parse("42.0.0"))
+        assert len(findings) == 1  # condition met
+
+
+def test_condition_has_files_in_dir_missing():
+    with tempfile.TemporaryDirectory() as tmp:
+        mod = _make_mod_with_lua(Path(tmp))
+        rule = Rule(id="test", type="structure", severity="info", since="42.0.0",
+                    description="Test", check="dir_exists", path="missing/",
+                    condition={"has_files_in_dir": "media/lua/shared/Translate", "file_glob": "*.txt"})
+        findings = check_mod(mod, RuleSet(rules=[rule]), PZVersion.parse("42.0.0"))
+        assert len(findings) == 0  # no translate dir → skip
+
+
+def test_condition_has_lua_files_true():
+    with tempfile.TemporaryDirectory() as tmp:
+        mod = _make_mod_with_lua(Path(tmp), lua_content="code")
+        rule = Rule(id="test", type="mod_info", severity="info", since="42.0.0",
+                    description="Test", check="exists", field_name="versionMin",
+                    condition={"has_lua_files": "true"})
+        findings = check_mod(mod, RuleSet(rules=[rule]), PZVersion.parse("42.0.0"))
+        assert len(findings) == 1  # has lua files, missing versionMin
+
+
+def test_condition_has_lua_files_false():
+    with tempfile.TemporaryDirectory() as tmp:
+        tmp_path = Path(tmp)
+        mod_dir = tmp_path / "EmptyMod"
+        mod_dir.mkdir()
+        mod = ModInfo(mod_id="EmptyMod", name="Empty", path=mod_dir, raw={"name": "Empty", "id": "EmptyMod"})
+        rule = Rule(id="test", type="mod_info", severity="info", since="42.0.0",
+                    description="Test", check="exists", field_name="versionMin",
+                    condition={"has_lua_files": "true"})
+        findings = check_mod(mod, RuleSet(rules=[rule]), PZVersion.parse("42.0.0"))
+        assert len(findings) == 0  # no lua files → skip
+
+
+def test_condition_has_b42_folder():
+    with tempfile.TemporaryDirectory() as tmp:
+        mod_yes = _make_mod_with_lua(Path(tmp), mod_id="ModWith42", has_42=True)
+        mod_no = _make_mod_with_lua(Path(tmp), mod_id="ModNo42", has_42=False)
+        rule = Rule(id="test", type="mod_info", severity="info", since="42.0.0",
+                    description="Test", check="exists", field_name="versionMin",
+                    condition={"has_b42_folder": "true"})
+        rs = RuleSet(rules=[rule])
+        v = PZVersion.parse("42.0.0")
+        assert len(check_mod(mod_yes, rs, v)) == 1  # has 42/ + no versionMin
+        assert len(check_mod(mod_no, rs, v)) == 0   # no 42/ → skip
+
+
+def test_condition_not_has_b42_folder():
+    with tempfile.TemporaryDirectory() as tmp:
+        mod_yes = _make_mod_with_lua(Path(tmp), mod_id="ModWith42", has_42=True)
+        mod_no = _make_mod_with_lua(Path(tmp), mod_id="ModNo42", has_42=False, lua_content="code")
+        rule = Rule(id="test", type="structure", severity="info", since="42.0.0",
+                    description="Test", check="dir_exists", path="common/",
+                    condition={"has_lua_files": "true", "not_has_b42_folder": "true"})
+        rs = RuleSet(rules=[rule])
+        v = PZVersion.parse("42.0.0")
+        assert len(check_mod(mod_no, rs, v)) == 1   # no 42/ + has lua → flagged
+        assert len(check_mod(mod_yes, rs, v)) == 0   # has 42/ → skip
+
+
+def test_condition_not_has_common_folder():
+    with tempfile.TemporaryDirectory() as tmp:
+        mod_common = _make_mod_with_lua(Path(tmp), mod_id="ModCommon", has_common=True, version_min="42.0.0")
+        mod_bare = _make_mod_with_lua(Path(tmp), mod_id="ModBare", version_min="42.0.0")
+        rule = Rule(id="test", type="structure", severity="info", since="42.0.0",
+                    description="Test", check="dir_exists", path="42/",
+                    condition={"has_version_min": "true", "not_has_common_folder": "true"})
+        rs = RuleSet(rules=[rule])
+        v = PZVersion.parse("42.0.0")
+        assert len(check_mod(mod_bare, rs, v)) == 1    # no common/ → flagged
+        assert len(check_mod(mod_common, rs, v)) == 0   # has common/ → skip
+
+
+def test_condition_has_version_min():
+    with tempfile.TemporaryDirectory() as tmp:
+        mod_with = _make_mod_with_lua(Path(tmp), mod_id="ModVer", version_min="42.0.0")
+        mod_without = _make_mod_with_lua(Path(tmp), mod_id="ModNoVer")
+        rule = Rule(id="test", type="structure", severity="info", since="42.0.0",
+                    description="Test", check="dir_exists", path="42/",
+                    condition={"has_version_min": "true"})
+        rs = RuleSet(rules=[rule])
+        v = PZVersion.parse("42.0.0")
+        assert len(check_mod(mod_with, rs, v)) == 1   # has versionMin, no 42/ → flagged
+        assert len(check_mod(mod_without, rs, v)) == 0  # no versionMin → skip
+
+
+def test_condition_has_content_dir():
+    with tempfile.TemporaryDirectory() as tmp:
+        tmp_path = Path(tmp)
+        # Mod with root media/lua content
+        mod = _make_mod_with_lua(tmp_path, mod_id="CodeMod", lua_content="code")
+        rule = Rule(id="test", type="structure", severity="info", since="42.0.0",
+                    description="Test", check="dir_exists", path="42/",
+                    condition={"has_content_dir": "true"})
+        rs = RuleSet(rules=[rule])
+        v = PZVersion.parse("42.0.0")
+        assert len(check_mod(mod, rs, v)) == 1  # has media/lua at root
+
+        # Empty mod
+        empty_dir = tmp_path / "EmptyMod"
+        empty_dir.mkdir()
+        empty_mod = ModInfo(mod_id="EmptyMod", name="Empty", path=empty_dir, raw={})
+        assert len(check_mod(empty_mod, rs, v)) == 0  # no content dir
+
+
+def test_condition_and_composition():
+    """Multiple conditions must ALL be true (AND logic)."""
+    with tempfile.TemporaryDirectory() as tmp:
+        # Mod with lua files + TraitFactory but HAS 42/ folder
+        mod = _make_mod_with_lua(Path(tmp), lua_content="TraitFactory.addTrait()", has_42=True)
+        rule = Rule(id="test", type="structure", severity="warning", since="42.0.0",
+                    description="Test", check="file_exists", path="42/media/registries.lua",
+                    condition={"has_lua_pattern": "TraitFactory", "not_has_b42_folder": "true"})
+        rs = RuleSet(rules=[rule])
+        v = PZVersion.parse("42.0.0")
+        # has_lua_pattern passes but not_has_b42_folder fails → skip
+        assert len(check_mod(mod, rs, v)) == 0
+
+
+def test_condition_empty_dict():
+    """Empty condition dict should apply the rule (no filtering)."""
+    with tempfile.TemporaryDirectory() as tmp:
+        mod = _make_mod_with_lua(Path(tmp))
+        rule = Rule(id="test", type="structure", severity="warning", since="42.0.0",
+                    description="Test", check="dir_exists", path="missing/",
+                    condition={})
+        findings = check_mod(mod, RuleSet(rules=[rule]), PZVersion.parse("42.0.0"))
+        assert len(findings) == 1  # empty condition → apply
+
+
 if __name__ == "__main__":
     test_load_rules()
     test_load_no_comp()
