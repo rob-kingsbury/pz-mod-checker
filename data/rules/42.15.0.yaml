@@ -1,0 +1,44 @@
+# PZ Build 42.15.0 — Translation format change to JSON, mod structure relaxed, game mode renames
+# Source: https://pzwiki.net/wiki/Build_42.15.0
+
+version: "42.15.0"
+release_date: "2026-03-09"
+summary: "Translation format change to JSON, mod structure relaxed, game mode renames"
+source: "https://pzwiki.net/wiki/Build_42.15.0"
+
+changes:
+
+  # --- TRANSLATION FORMAT ---
+
+  - id: b42-15-translation-json
+    type: deprecated
+    severity: warning
+    since: "42.15.0"
+    description: "Translation files should use .json format instead of .txt"
+    pattern: "Translate"
+    scan: "*.txt"
+    path: "media/lua/shared/Translate/"
+    context: "42.15 moved translation files to JSON format"
+    replacement: "Convert .txt translation files to .json format"
+
+  # --- GAME MODE RENAMES ---
+
+  - id: b42-15-gamemode-builder
+    type: api_rename
+    severity: warning
+    since: "42.15.0"
+    description: "Builder game mode removed — replaced with new mode names"
+    old_pattern: "\"Builder\""
+    new_name: "Apocalypse/Outbreak/Extinction/Rising"
+    scan: "*.lua"
+    context: "Game modes renamed in 42.15"
+
+  - id: b42-15-gamemode-survivor
+    type: api_rename
+    severity: warning
+    since: "42.15.0"
+    description: "Survivor game mode removed — replaced with new mode names"
+    old_pattern: "\"Survivor\""
+    new_name: "Apocalypse/Outbreak/Extinction/Rising"
+    scan: "*.lua"
+    context: "Game modes renamed in 42.15"
