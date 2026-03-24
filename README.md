@@ -4,7 +4,7 @@ External compatibility scanner, crash diagnostics, and mod manager for **Project
 
 Scans your mods for known breaking changes, parses crash logs to identify culprits, and lets you enable/disable mods without launching the game. Zero dependencies -- runs entirely on Python's standard library.
 
-**[User Guide](docs/user-guide.md)** | **[Download](https://github.com/rob-kingsbury/pz-mod-checker/releases)** | **[Steam Workshop: @robotsmeller](https://steamcommunity.com/id/robotsmeller)**
+**[User Guide](docs/user-guide.md)** | **[Download](https://github.com/robotsmeller/pz-mod-checker/releases)** | **[Steam Workshop: @robotsmeller](https://steamcommunity.com/id/robotsmeller)**
 
 ---
 
@@ -43,14 +43,14 @@ pz-mod-checker bisect start
 ### From source (Python 3.10+)
 
 ```bash
-git clone https://github.com/rob-kingsbury/pz-mod-checker.git
+git clone https://github.com/robotsmeller/pz-mod-checker.git
 cd pz-mod-checker
 pip install -e .
 ```
 
 ### Standalone .exe (coming soon)
 
-Download from [GitHub Releases](https://github.com/rob-kingsbury/pz-mod-checker/releases) -- no Python required. Double-click to launch the web GUI.
+Download from [GitHub Releases](https://github.com/robotsmeller/pz-mod-checker/releases) -- no Python required. Double-click to launch the web GUI.
 
 ### From pip (coming soon)
 
@@ -129,9 +129,9 @@ To add a rule: edit the appropriate version file, test with `pz-mod-checker scan
 - [x] Mod manager with profiles
 - [x] Bisect (binary search for crashing mod)
 - [x] Web GUI with dev mode
-- [ ] PyInstaller .exe distribution ([#2](https://github.com/rob-kingsbury/pz-mod-checker/issues/2))
+- [ ] PyInstaller .exe distribution ([#2](https://github.com/robotsmeller/pz-mod-checker/issues/2))
 - [ ] pip publish to PyPI
-- [ ] Crowdsourced mod compatibility data ([#1](https://github.com/rob-kingsbury/pz-mod-checker/issues/1))
+- [ ] Crowdsourced mod compatibility data ([#1](https://github.com/robotsmeller/pz-mod-checker/issues/1))
 
 ---
 

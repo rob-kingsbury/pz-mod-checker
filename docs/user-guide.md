@@ -185,7 +185,7 @@ The tool auto-detects these paths:
 ### From source (Python 3.10+)
 
 ```bash
-git clone https://github.com/rob-kingsbury/pz-mod-checker.git
+git clone https://github.com/robotsmeller/pz-mod-checker.git
 cd pz-mod-checker
 pip install -e .
 pz-mod-checker --gui
@@ -199,4 +199,4 @@ pip install pz-mod-checker
 
 ### Standalone .exe (coming soon)
 
-Download from [GitHub Releases](https://github.com/rob-kingsbury/pz-mod-checker/releases) -- no Python required.
+Download from [GitHub Releases](https://github.com/robotsmeller/pz-mod-checker/releases) -- no Python required.
