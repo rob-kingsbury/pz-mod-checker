@@ -854,10 +854,12 @@ async function disableScanBreaking() {
     if (hasBreaking || isPreB42) ids.push(modId);
   }
   if (ids.length === 0) return;
-  if (!await confirmModal(`Disable ${ids.length} mod(s) with breaking issues or pre-B42 Workshop status?`)) return;
+  if (!await confirmModal(`Disable ${ids.length} mod(s) with breaking issues or pre-B42 Workshop status? Scope will switch to Active Mods to show the result.`)) return;
   try {
     const data = await api('POST', '/api/mods/disable-scan-breaking', { mod_ids: ids });
-    toast(`Disabled ${(data.disabled || []).length} mod(s). ${data.total_active} mods still active. Re-scanning...`, 'success');
+    toast(`Disabled ${(data.disabled || []).length} mod(s). ${data.total_active} mods still active. Re-scanning active mods...`, 'success');
+    // Switch to active scope so re-scan excludes disabled mods
+    setScope('active');
     refreshHeader();
     runScan();
   } catch (e) {
