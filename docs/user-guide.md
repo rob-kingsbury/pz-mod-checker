@@ -25,9 +25,23 @@ pz-mod-checker bisect start       # Find which mod is crashing PZ
 
 ---
 
+## Global Scope Bar
+
+At the top of every page, the **scope bar** controls which mods all tabs operate on:
+
+- **Active Mods** -- only mods enabled in your default.txt (default)
+- **All Installed** -- every mod on disk, including disabled ones
+- **Profile** -- a saved profile's mod list
+
+The scope persists across sessions. Changing scope immediately re-renders the current tab.
+
+**Save profiles** using the input field on the right side of the scope bar. Profiles store your current mod list so you can quickly switch configurations.
+
+---
+
 ## Scan
 
-Checks your mods against version-keyed rules covering B42.0 through B42.15. Each rule describes a breaking change introduced in a specific PZ version.
+Pre-launch check. Scans mod files for code patterns that break in your PZ version. Use this **before** launching PZ to catch issues early.
 
 ### Severity Levels
 
@@ -37,14 +51,17 @@ Checks your mods against version-keyed rules covering B42.0 through B42.15. Each
 | **WARNING** | May malfunction, needs investigation | Check if the mod has a B42 update |
 | **INFO** | Cosmetic or minor, likely still works | Low priority, fix if you can |
 
-### GUI
+### GUI Features
 
-- **Version dropdown** auto-detects your PZ version and shows available rule sets
-- **Scope** lets you scan only active mods or all installed mods
-- **Severity filters** toggle which findings are shown
-- **Search** filters results by mod name or ID
-- **Pagination** shows 25 mods per page
-- **Disable buttons** let you disable breaking mods without switching tabs
+- **Version dropdown** -- auto-detects your PZ version, shows rule sets labeled like "42.15+ (latest)"
+- **Severity filter pills** -- click to toggle which severities are shown (keyboard-accessible)
+- **Search** -- filter results by mod name or ID
+- **Pagination** -- 25 mods per page with First/Prev/Next/Last controls
+- **Results sorted by severity** -- breaking mods appear first
+- **Findings grouped within each mod** -- breaking findings expanded, warnings and info collapsed
+- **Inline Disable buttons** -- disable a mod directly from scan results
+- **"Disable All Breaking"** -- bulk-disable all mods with breaking findings
+- **Workshop badges** -- when you run "Check for Updates" on the Mods tab, scan results show "update on Workshop", "not updated for B42", or "B42 OK" badges
 
 ### CLI
 
@@ -61,7 +78,7 @@ pz-mod-checker scan 42.10.0                      # Scan against an older version
 
 ## Diagnose
 
-Reads your last PZ session's `console.txt` and identifies which mods caused errors.
+Post-crash forensics. Parses your last PZ session's **console.txt** to identify which mods caused errors. Best used **after** PZ crashes or misbehaves.
 
 PZ logs Lua stack traces with `| MOD: <name>` attribution on every frame -- this tool reads those to pinpoint exactly which mod caused each error.
 
@@ -72,6 +89,13 @@ If you see require failures, it means mods tried to load Lua modules that don't 
 - The mod depends on another mod that isn't installed
 
 **Fix:** Check if each mod has a B42-compatible update on the Workshop. If not, disable it.
+
+### GUI Features
+
+- **Error cards** grouped by mod, sorted by error count
+- **Inline Disable buttons** per mod
+- **"Disable All Erroring Mods"** bulk action
+- **Plain-language explanations** for require failures with fix suggestions
 
 ### CLI
 
@@ -86,15 +110,20 @@ pz-mod-checker diagnose --log path/to/console.txt  # Specific log file
 
 ## Mod Manager
 
-Toggle mods on/off without launching PZ. Reads and writes `~/Zomboid/mods/default.txt`. Creates a backup before every change.
+Enable or disable mods without launching PZ. Changes are written to **default.txt** and take effect on next PZ launch. Creates a backup before every change.
 
-### GUI
+### GUI Features
 
-- **Search** and **sort** (A-Z, Z-A, Enabled first, Disabled first, Updates first)
-- **Toggle switches** to enable/disable individual mods
-- **Bulk actions**: Enable All, Disable All
-- **Check for Updates**: Queries Steam Workshop to detect mods with newer versions or stale mods not updated since B42. Shows badges: "update available", "stale", "B42 OK", "updated"
-- **Profiles**: Save and load named mod configurations (via global scope bar)
+- **Search** by name or ID
+- **Sort**: A-Z, Z-A, Enabled first, Disabled first, Updates available first
+- **Toggle switches** to enable/disable individual mods (keyboard-accessible)
+- **Bulk actions**: Enable All, Disable All (operates on visible/filtered mods only)
+- **Check for Updates**: Queries Steam Workshop to detect mods with newer versions. Shows badges:
+  - **update available** (amber) -- Workshop version is newer than your local files
+  - **stale** (red) -- mod hasn't been updated since B42 release
+  - **B42 OK** (green) -- claims B42 support and updated recently
+  - **updated** (gray) -- updated post-B42 but no explicit B42 tags
+- Workshop last-updated date shown under each mod ID
 
 ### CLI
 
@@ -106,7 +135,7 @@ pz-mod-checker manage --disable-breaking  # Disable all mods that crashed last s
 pz-mod-checker manage --disable-all       # Disable everything (safe mode)
 pz-mod-checker manage --enable-only ModA ModB ModC  # Enable ONLY these mods
 
-# Profiles
+# Profiles (also accessible via scope bar in GUI)
 pz-mod-checker manage --profile-save "Working"    # Save current mod list
 pz-mod-checker manage --profile-load "Working"    # Restore a saved profile
 pz-mod-checker manage --profile-list              # List all profiles
@@ -116,7 +145,7 @@ pz-mod-checker manage --profile-list              # List all profiles
 
 ## Bisect
 
-Binary search through your mods to identify which one crashes PZ. Finds the culprit in ~8 rounds for 165 mods.
+Crash isolation. Binary search through your mods to find the one crashing PZ. Typically finds the culprit in **7-8 rounds** for 165 mods. Your original mod list is restored when done.
 
 ### How It Works
 
@@ -149,10 +178,24 @@ pz-mod-checker bisect abort    # Give up, restore backup
 
 Toggle **Dev Mode** in the footer to enable features for mod developers:
 
-- **Rule IDs** shown on each finding (e.g. `b42-13-fear-removed`)
-- **Export buttons** per mod: Copy as TXT, Markdown, or JSON
-- **Export All**: Copy the entire scan report to clipboard
+- **Rule IDs** shown on each finding (e.g. `b42-13-fear-removed`) -- useful for reporting false positives or understanding what changed
+- **Export buttons** per mod: Copy as TXT (for Discord/forums), Markdown (for GitHub issues), or JSON (for tooling/CI)
+- **Export All**: Copy the entire scan report to clipboard in any format
 - Share reports with other modders or paste into GitHub issues
+
+Dev mode persists across sessions (stored in browser localStorage).
+
+---
+
+## Inline User Guide
+
+Click **User Guide** in the footer to open this documentation inside the app. The guide is fetched from GitHub:
+
+1. First tries the version-tagged release (e.g. `v0.1.0`) for an exact match
+2. Falls back to the `main` branch (latest)
+3. Falls back to the local bundled copy if offline
+
+The loaded version is shown at the top of the panel. If a newer version of PZ Mod Checker is available, a link is shown in the header and in the docs panel.
 
 ---
 
@@ -168,6 +211,7 @@ The tool auto-detects these paths:
 | User mods | `~/Zomboid/mods/` | Locally installed mods |
 | Workshop mods | `Steam/steamapps/workshop/content/108600/` | Steam Workshop mods |
 | Bisect state | `~/Zomboid/.pz-mod-checker/bisect_state.json` | Bisect progress |
+| Workshop cache | Platform cache directory | Cached Steam API responses (24h TTL) |
 
 ---
 

@@ -1,104 +1,105 @@
 # PZ Mod Checker -- Handoff
 
-**Last Updated:** 2026-03-24 (Session 3)
+**Last Updated:** 2026-03-24 (end of Session 3)
 
 ## Current State
 
-Core tool complete. Web GUI v2 polished with full audit fixes. Ready for testing pass.
+GUI v2 complete with full audit fixes, accessibility, workshop integration, and test coverage. Ready for distribution (PyInstaller/.exe).
 
 ## What's Working
 
 - **Scanner** -- 51 JSON rules covering B42.0 through B42.15, version-keyed filtering
 - **Diagnose** -- Parses console.txt, identifies mod errors with MOD attribution, resolves names to IDs
 - **Manager** -- Read/write default.txt, enable/disable mods, profiles, backups
-- **Workshop** -- Steam API queries with cache, heuristic classification
+- **Workshop** -- Steam API queries with 24h cache, staleness detection, update checking in GUI
 - **Bisect** -- Binary search with dependency groups, state persistence, diagnose shortcut
 - **CLI** -- 4 subcommands (scan, diagnose, manage, bisect) + --gui flag
-- **Web GUI v2** -- Full dashboard at :8642, see below
-- **Tests** -- 43+ tests, all passing
+- **Web GUI v2** -- Full dashboard at :8642 (see details below)
+- **Tests** -- 51 tests, all passing
 - **Packaging** -- pyproject.toml, pip install -e . works, JSON rules
-- **GitHub** -- Repo at robotsmeller/pz-mod-checker, 15 issues tracked (#4-#18)
+- **GitHub** -- Repo at robotsmeller/pz-mod-checker, issues tracked
 
-## GUI v2 Features (Session 3)
+## GUI v2 (Session 3)
 
-### Layout
-- Global scope bar: Active Mods / All Installed / Profile (persistent, affects all tabs)
-- Tab descriptions explaining each tool's use case
-- Footer: credits (@robotsmeller), GitHub link, inline User Guide, Dev Mode toggle
-- Paginated scan results (25/page) with search filter
+### Global
+- **Scope bar**: Active Mods / All Installed / Profile radio buttons (persistent across sessions)
+- **Tab descriptions**: each tab explains use case and expected outcomes
+- **Footer**: credits (@robotsmeller), GitHub link, inline User Guide, Dev Mode toggle
+- **Themed confirm modals** replace all native confirm() dialogs
+- **Toast notifications** replace all alert() calls
+- **Version check**: header badge when newer GitHub release available
+- **Inline User Guide**: fetches from GitHub (versioned tag, falls back to main, then local)
 
 ### Scan Tab
 - Version dropdown from rule files, auto-detects PZ version, labels like "42.15+ (latest)"
-- Severity filter toggles (keyboard-accessible, aria-pressed)
-- Results sorted by severity (breaking first)
-- Inline Disable buttons per mod (via event delegation, XSS-safe)
-- "Disable All Breaking" bulk action
+- Severity filter toggles (role="button", aria-pressed, keyboard-accessible)
+- Results sorted by severity, paginated (25/page), searchable
 - Findings grouped by severity within each mod (breaking expanded, others collapsed)
 - Animated +/- indicators (CSS bar collapse)
+- Inline Disable buttons, "Disable All Breaking" bulk action
+- Workshop badges when update data loaded
 
 ### Dev Mode (footer toggle, persists in localStorage)
 - Rule IDs on each finding
-- Per-mod export: Copy TXT / Copy MD / Copy JSON
+- Per-mod export: TXT / MD / JSON
 - Export All: full scan report to clipboard
-- Aimed at mod developers debugging their own mods
 
 ### Diagnose Tab
 - User-friendly require() failure explanations with fix suggestions
 - Inline Disable per mod
+- Session info grid
 
 ### Mods Tab
-- Sort: A-Z, Z-A, Enabled first, Disabled first
+- Sort: A-Z, Z-A, Enabled first, Disabled first, Updates first
 - Scope-aware filtering
-- Toggle switches with role="switch", aria-checked, keyboard-accessible
+- Check for Updates: queries Steam Workshop, shows badges (update available, stale, B42 OK, updated)
+- Toggle switches: role="switch", aria-checked, keyboard-accessible
+- Bulk actions scope to filtered/visible list only
 
 ### Bisect Tab
 - 3-step onboarding guide (single source, rendered dynamically)
+- Progress bar with round/suspect/known-good counts
 
-### Infrastructure
-- ThreadingHTTPServer prevents UI freezes
+### Security
+- XSS eliminated: all onclick handlers use data-attr + event delegation
 - No CORS headers (same-origin only)
 - try/except on all handlers returns JSON errors
 - 400 on bad JSON, 413 on oversized body
-- console.txt parsing cached with mtime
-- discover_mods() cached with mtime
-- Toast notifications replace all alert()/confirm()
-- Themed confirm modal
 - Content-Length limit (1MB)
 
 ### Accessibility
 - Tab bar: role="tablist", role="tab", aria-selected, aria-controls, role="tabpanel"
 - Toggle switches: role="switch", aria-checked, tabindex
 - Severity pills: role="button", aria-pressed, keyboard handler
-- Docs panel: role="dialog", aria-modal, focus trap
+- Docs panel: role="dialog", aria-modal, focus trap, focus restore
 - Scope profile select: aria-label
 - Severity badges include text labels (brk/wrn/inf)
 
-### Docs
-- docs/user-guide.md -- full usage documentation
-- README.md -- project landing page (features, roadmap, API, architecture)
-- Inline User Guide fetches from GitHub (versioned tag first, main fallback, local fallback)
-- Version check: header badge when newer release available
+### Performance
+- ThreadingHTTPServer prevents UI freeze during scan
+- console.txt parsing cached with mtime check
+- discover_mods() cached with mtime-based invalidation
+- Workshop API responses cached (24h TTL)
 
 ## Open Issues
 
-### Medium (logged, not yet fixed)
-- None remaining -- all #14-#18 fixed in session 3
+- #1 -- Crowdsourced mod compatibility data (future)
+- #2 -- PyInstaller .exe + pip publish (next priority)
+- #3 -- Documentation (ongoing)
 
-### Future
-- #1 -- Crowdsourced mod compatibility data
-- #2 -- PyInstaller .exe + pip publish
-- #3 -- Documentation updates (ongoing)
+## Next Session Priority
 
-## After This Session
+1. **Distribution** -- PyInstaller .exe + pip publish (issue #2)
+2. Workshop staleness could be shown more prominently in scan suggestions
+3. Consider splitting index.html into modules if GUI keeps growing (~1500 lines)
 
-### Priority Order
-1. ~~GUI improvements~~ Done (session 3)
-2. Distribution (PyInstaller .exe + pip publish) -- see issue #2
-3. Workshop staleness detection (compare local mod timestamps vs Workshop time_updated)
-4. PZwiki API for rule discovery -- deprioritized
-
-## Recent Commits
+## Session 3 Commits
 ```
+cec8930 Gitignore audit-report.md
+db15866 Add .gitignore entries for scroll-analysis-output and .claude/settings
+f989bbf Test pass: fix 5 bugs, add 8 unit tests, 51 tests passing
+e2c047f Add Workshop update checking to GUI
+4ba2a0c Fix medium audit findings #14-#18, update HANDOFF
 3da57dd Fix 10 audit findings: XSS, accessibility, UX, performance
 9acb87d Global scope bar: Active/All/Profile scoping across all tabs
 d9e0c47 Tab descriptions, versioned docs, update checker, sort fix
