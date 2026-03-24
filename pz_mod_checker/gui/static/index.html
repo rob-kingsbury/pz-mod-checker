@@ -119,6 +119,7 @@
     <div class="flex items-center gap-3">
       <h1 class="text-xl font-bold text-pz-green">PZ Mod Checker</h1>
       <span id="app-version" class="text-xs bg-surface-3 text-slate-400 px-2 py-0.5 rounded">v...</span>
+      <a id="update-notice" href="#" target="_blank" class="text-xs bg-emerald-900 text-pz-green px-2 py-0.5 rounded hover:bg-emerald-800 transition-colors hidden">update available</a>
     </div>
     <div class="flex items-center gap-4 text-xs text-slate-400">
       <span>PZ <strong id="pz-version" class="text-slate-200">detecting...</strong></span>
@@ -140,6 +141,7 @@
 
     <!-- ==================== SCAN TAB ==================== -->
     <section id="tab-scan" class="tab-panel">
+      <p class="text-xs text-slate-500 mb-3">Pre-launch check. Scans mod files for code patterns that break in your PZ version. Use this <strong class="text-slate-400">before</strong> launching PZ to catch issues early. Findings include fix suggestions where possible.</p>
       <div class="card p-5 mb-4">
         <div class="flex items-end gap-4">
           <div>
@@ -178,6 +180,7 @@
 
     <!-- ==================== DIAGNOSE TAB ==================== -->
     <section id="tab-diagnose" class="tab-panel hidden">
+      <p class="text-xs text-slate-500 mb-3">Post-crash forensics. Parses your last PZ session's <strong class="text-slate-400">console.txt</strong> to identify which mods caused errors. Best used <strong class="text-slate-400">after</strong> PZ crashes or misbehaves. Shows error counts per mod with stack traces.</p>
       <div class="card p-5 mb-4 flex items-center gap-4">
         <button id="btn-diagnose" onclick="runDiagnose()"
                 class="bg-amber-600 hover:bg-amber-500 text-white px-5 py-2 rounded text-sm font-medium transition-colors">
@@ -198,6 +201,7 @@
 
     <!-- ==================== MODS TAB ==================== -->
     <section id="tab-mods" class="tab-panel hidden">
+      <p class="text-xs text-slate-500 mb-3">Mod manager. Enable or disable mods without launching PZ. Changes are written to <strong class="text-slate-400">default.txt</strong> and take effect on next PZ launch. Save profiles to quickly switch between mod configurations.</p>
       <div class="card p-5 mb-4">
         <div class="flex items-center gap-4 mb-4">
           <input id="mod-search" type="text" placeholder="Search mods..."
@@ -236,6 +240,7 @@
 
     <!-- ==================== BISECT TAB ==================== -->
     <section id="tab-bisect" class="tab-panel hidden">
+      <p class="text-xs text-slate-500 mb-3">Crash isolation. Binary search through your mods to find the one crashing PZ. Splits your mod list in half each round -- typically finds the culprit in <strong class="text-slate-400">7-8 rounds</strong> for 165 mods. Your original mod list is restored when done.</p>
       <div class="card p-5 mb-4">
         <div id="bisect-controls" class="flex items-center gap-3 flex-wrap">
           <button id="btn-bisect-start" onclick="bisectAction('start')"
@@ -904,7 +909,7 @@ async function refreshMods() {
   try {
     const data = await api('GET', '/api/mods');
     allMods = data.mods || [];
-    renderMods(allMods);
+    filterMods();
   } catch (e) {
     el.innerHTML = errorBox('Failed to load mods: ' + e.message);
   }
@@ -1179,9 +1184,15 @@ async function bisectAction(action) {
 /* ======================================================================
    Inline Docs
    ====================================================================== */
-const DOCS_GITHUB_URL = 'https://raw.githubusercontent.com/robotsmeller/pz-mod-checker/main/docs/user-guide.md';
-const DOCS_FALLBACK_URL = 'https://github.com/robotsmeller/pz-mod-checker/blob/main/docs/user-guide.md';
+const DOCS_REPO = 'robotsmeller/pz-mod-checker';
+const DOCS_PATH = 'docs/user-guide.md';
 let docsLoaded = false;
+let localVersion = null; // set during init
+let latestVersion = null;
+
+function docsGitHubUrl(ref = 'main') {
+  return `https://raw.githubusercontent.com/${DOCS_REPO}/${ref}/${DOCS_PATH}`;
+}
 
 function openDocs() {
   $('docs-panel').classList.add('open');
@@ -1197,31 +1208,48 @@ async function loadDocs() {
   const source = $('docs-source');
   body.innerHTML = '<div class="flex justify-center py-8"><span class="spinner"></span></div>';
 
-  // Try GitHub first (latest upstream), then fall back to local bundled copy
   let md = null;
   let src = '';
+  const ver = localVersion || '0.1.0';
+  const tag = 'v' + ver;
 
+  // 1. Try versioned tag on GitHub (exact match for this install)
   try {
-    const res = await fetch(DOCS_GITHUB_URL);
-    if (res.ok) { md = await res.text(); src = 'Loaded from GitHub (latest)'; }
-  } catch (e) { /* network error, try local */ }
+    const res = await fetch(docsGitHubUrl(tag));
+    if (res.ok) { md = await res.text(); src = `Guide v${ver} from GitHub (tag ${tag})`; }
+  } catch (e) {}
 
+  // 2. Fallback to main branch (latest)
+  if (!md) {
+    try {
+      const res = await fetch(docsGitHubUrl('main'));
+      if (res.ok) { md = await res.text(); src = `Guide from GitHub (main branch, latest)`; }
+    } catch (e) {}
+  }
+
+  // 3. Fallback to local bundled copy
   if (!md) {
     try {
       const res = await fetch('/api/docs');
-      if (res.ok) { md = await res.text(); src = 'Loaded from local install'; }
-    } catch (e) { /* local also failed */ }
+      if (res.ok) { md = await res.text(); src = `Guide v${ver} from local install`; }
+    } catch (e) {}
   }
 
   if (md && typeof marked !== 'undefined') {
-    body.innerHTML = marked.parse(md);
-    source.textContent = src;
+    // Prepend version info banner
+    let banner = `<div class="text-xs text-slate-500 bg-surface-1 rounded px-3 py-2 mb-4">${esc(src)}`;
+    if (latestVersion && latestVersion !== ver) {
+      banner += ` &mdash; <a href="https://github.com/${DOCS_REPO}/releases/tag/v${esc(latestVersion)}" target="_blank" class="text-pz-green">v${esc(latestVersion)} available</a>`;
+    }
+    banner += '</div>';
+    body.innerHTML = banner + marked.parse(md);
+    source.textContent = `v${ver}`;
     docsLoaded = true;
   } else {
     body.innerHTML = `
       <div class="text-center py-8">
         <p class="text-slate-400 mb-4">Could not load the user guide.</p>
-        <a href="${DOCS_FALLBACK_URL}" target="_blank"
+        <a href="https://github.com/${DOCS_REPO}/blob/main/${DOCS_PATH}" target="_blank"
            class="text-pz-green underline">View on GitHub</a>
       </div>`;
     source.textContent = '';
@@ -1247,21 +1275,22 @@ async function refreshHeader() {
 (function init() {
   // Fetch version info (may be slow — reads console.txt + mod list)
   api('GET', '/api/version').then(data => {
-    $('app-version').textContent = 'v' + (data.tool_version || '?');
+    localVersion = data.tool_version || '0.1.0';
+    $('app-version').textContent = 'v' + localVersion;
     $('pz-version').textContent = data.pz_version || 'not detected';
     $('active-mod-count').textContent = data.active_mods ?? '?';
     if (data.last_session) {
       $('last-session').textContent = 'Last session: ' + data.last_session;
     }
-    // Update empty state with mod count
     const emptyState = $('scan-empty-state');
     if (emptyState && data.active_mods > 0) {
       emptyState.innerHTML = `Press <strong class="text-pz-green">Scan Mods</strong> to check your ${data.active_mods} active mods for B42 compatibility issues.`;
     }
-    // Re-populate dropdown with detected version if rule versions already loaded
     if (ruleVersions.length > 0) {
       populateVersionDropdown(ruleVersions, data.pz_version);
     }
+    // Check for updates after we know our version
+    checkForUpdates();
   }).catch(() => {});
 
   // Fetch available rule versions (fast — just reads filenames)
@@ -1269,6 +1298,23 @@ async function refreshHeader() {
     populateVersionDropdown(data.versions || []);
   }).catch(() => {});
 })();
+
+async function checkForUpdates() {
+  try {
+    const res = await fetch(`https://api.github.com/repos/${DOCS_REPO}/releases/latest`);
+    if (!res.ok) return;
+    const data = await res.json();
+    const tag = (data.tag_name || '').replace(/^v/, '');
+    if (!tag || !localVersion) return;
+    latestVersion = tag;
+    if (tag !== localVersion) {
+      const notice = $('update-notice');
+      notice.textContent = `v${tag} available`;
+      notice.href = data.html_url || `https://github.com/${DOCS_REPO}/releases`;
+      notice.classList.remove('hidden');
+    }
+  } catch (e) { /* offline or rate limited */ }
+}
 
 let ruleVersions = [];
 
