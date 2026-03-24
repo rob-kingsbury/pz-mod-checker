@@ -128,7 +128,7 @@
     </div>
     <div class="flex items-center gap-4 text-xs text-slate-400">
       <span>PZ <strong id="pz-version" class="text-slate-200">detecting...</strong></span>
-      <span><strong id="active-mod-count" class="text-pz-green">...</strong> mods active</span>
+      <span><strong id="active-mod-count" class="text-pz-green">...</strong> active / <strong id="total-mod-count" class="text-slate-200">...</strong> total mods</span>
       <span id="last-session" class="text-slate-500"></span>
     </div>
   </header>
@@ -1551,6 +1551,7 @@ async function refreshHeader() {
   try {
     const data = await api('GET', '/api/version');
     $('active-mod-count').textContent = data.active_mods ?? '?';
+    $('total-mod-count').textContent = data.total_mods ?? '?';
   } catch (e) { /* ignore */ }
 }
 
@@ -1567,6 +1568,7 @@ async function refreshHeader() {
     $('app-version').textContent = 'v' + localVersion;
     $('pz-version').textContent = data.pz_version || 'not detected';
     $('active-mod-count').textContent = data.active_mods ?? '?';
+    $('total-mod-count').textContent = data.total_mods ?? '?';
     if (data.last_session) {
       $('last-session').textContent = 'Last session: ' + data.last_session;
     }
