@@ -303,6 +303,31 @@ def list_profiles(zomboid_dir: Path | None = None) -> list[Profile]:
     return read_profiles(get_profiles_path(zomboid_dir))
 
 
+def delete_mod(mod_id: str, mod_dirs: list[Path] | None = None) -> Path | None:
+    """Delete a mod's folder from disk after disabling it.
+
+    Returns the deleted path, or None if the mod was not found.
+    Raises PermissionError if the folder cannot be deleted.
+    """
+    if not _validate_mod_id(mod_id):
+        raise ValueError(f"Invalid mod ID: {mod_id!r}")
+
+    # Disable first so PZ doesn't try to load it
+    disable_mods([mod_id])
+
+    # Find the mod's path
+    discovered = discover_mods(mod_dirs)
+    for mod in discovered:
+        if mod.mod_id == mod_id:
+            target = mod.path
+            if not target.is_dir():
+                return None
+            shutil.rmtree(target)
+            return target
+
+    return None
+
+
 def get_mod_status(
     zomboid_dir: Path | None = None,
     mod_dirs: list[Path] | None = None,

@@ -495,6 +495,9 @@ document.addEventListener('click', async (e) => {
     btn.disabled = true;
     await disableMod(modId);
     btn.disabled = false;
+  } else if (action === 'delete-mod' && modId) {
+    e.stopPropagation();
+    await deleteMod(modId);
   } else if (action === 'export' && modId) {
     exportModFindings(modId, btn.dataset.format || 'text');
   } else if (action === 'toggle-mod' && modId) {
@@ -667,8 +670,10 @@ function renderScanResults(data) {
             ${bc ? `<span class="severity-breaking px-2 py-0.5 rounded text-xs">${bc} brk</span>` : ''}
             ${wc ? `<span class="severity-warning px-2 py-0.5 rounded text-xs">${wc} wrn</span>` : ''}
             ${ic ? `<span class="severity-info px-2 py-0.5 rounded text-xs">${ic} inf</span>` : ''}
-            ${hasBreaking ? `<button data-action="disable-mod" data-mod-id="${esc(modId)}"
-              class="ml-2 bg-red-800 hover:bg-red-700 text-red-200 px-2 py-0.5 rounded text-xs transition-colors">Disable</button>` : ''}
+            <button data-action="disable-mod" data-mod-id="${esc(modId)}"
+              class="ml-2 bg-red-800 hover:bg-red-700 text-red-200 px-2 py-0.5 rounded text-xs transition-colors">Disable</button>
+            <button data-action="delete-mod" data-mod-id="${esc(modId)}"
+              class="bg-red-950 hover:bg-red-900 text-red-300 px-2 py-0.5 rounded text-xs transition-colors border border-red-800">Delete</button>
           </div>
         </summary>
         <div class="px-4 pb-4 space-y-2">
@@ -961,6 +966,24 @@ async function disableMod(modId) {
   }
 }
 
+async function deleteMod(modId) {
+  if (!await confirmModal(`Permanently delete mod "${modId}" from disk? This cannot be undone.`)) return;
+  try {
+    await api('POST', '/api/mods/delete', { mod_id: modId });
+    toast(`Deleted ${modId}`, 'success');
+    allMods = allMods.filter(m => m.mod_id !== modId);
+    if (lastScanData && lastScanData.mods) {
+      delete lastScanData.mods[modId];
+      lastScanData.total_mods_with_issues = Object.keys(lastScanData.mods).length;
+      renderScanResults(lastScanData);
+    }
+    if (document.querySelector('[data-tab="mods"].active')) fetchMods();
+    refreshHeader();
+  } catch (e) {
+    toast('Delete failed: ' + e.message, 'error');
+  }
+}
+
 /* ======================================================================
    DIAGNOSE
    ====================================================================== */
@@ -1022,7 +1045,9 @@ async function runDiagnose() {
               <div class="flex gap-2 items-center">
                 <span class="text-xs text-red-400 font-medium">${count} error${count !== 1 ? 's' : ''}</span>
                 ${info.mod_id ? `<button data-action="disable-mod" data-mod-id="${esc(info.mod_id)}"
-                  class="ml-2 bg-red-800 hover:bg-red-700 text-red-200 px-2 py-0.5 rounded text-xs transition-colors">Disable</button>` : ''}
+                  class="ml-2 bg-red-800 hover:bg-red-700 text-red-200 px-2 py-0.5 rounded text-xs transition-colors">Disable</button>
+                  <button data-action="delete-mod" data-mod-id="${esc(info.mod_id)}"
+                  class="bg-red-950 hover:bg-red-900 text-red-300 px-2 py-0.5 rounded text-xs transition-colors border border-red-800">Delete</button>` : ''}
               </div>
             </summary>
             <div class="px-4 pb-4 space-y-2">
@@ -1168,10 +1193,14 @@ function renderMods(mods) {
         <div class="text-sm font-medium text-slate-200 truncate">${esc(m.name)}${badge}</div>
         <div class="text-xs text-slate-500 truncate">${esc(m.mod_id)}${ws?.last_updated ? ` \u00B7 Workshop: ${esc(ws.last_updated)}` : ''}</div>
       </div>
-      <button class="toggle-track ${m.enabled ? 'on' : ''}" role="switch" aria-checked="${m.enabled}"
-              tabindex="0" data-action="toggle-mod" data-mod-id="${esc(m.mod_id)}" data-enable="${!m.enabled}">
-        <div class="toggle-thumb"></div>
-      </button>
+      <div class="flex items-center gap-2">
+        <button class="toggle-track ${m.enabled ? 'on' : ''}" role="switch" aria-checked="${m.enabled}"
+                tabindex="0" data-action="toggle-mod" data-mod-id="${esc(m.mod_id)}" data-enable="${!m.enabled}">
+          <div class="toggle-thumb"></div>
+        </button>
+        <button data-action="delete-mod" data-mod-id="${esc(m.mod_id)}"
+          class="bg-red-950 hover:bg-red-900 text-red-300 px-1.5 py-0.5 rounded text-xs transition-colors border border-red-800" title="Delete mod from disk">&#x2715;</button>
+      </div>
     </div>`;
   }).join('');
 }

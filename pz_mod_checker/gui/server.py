@@ -149,6 +149,8 @@ class PZModCheckerHandler(BaseHTTPRequestHandler):
                 self._handle_profile_save(body)
             elif path == "/api/profile/load":
                 self._handle_profile_load(body)
+            elif path == "/api/mods/delete":
+                self._handle_mods_delete(body)
             elif path == "/api/bisect/start":
                 self._handle_bisect_start()
             elif path == "/api/bisect/crash":
@@ -405,6 +407,22 @@ class PZModCheckerHandler(BaseHTTPRequestHandler):
             return
         mod_list = disable_mods(mod_ids)
         self._send_json({"total_active": len(mod_list.mods), "disabled": mod_ids})
+
+    def _handle_mods_delete(self, body: dict) -> None:
+        """Delete a mod's folder from disk."""
+        from ..manager import delete_mod
+        mod_id = body.get("mod_id", "")
+        if not mod_id:
+            self._send_json({"error": "mod_id required"}, 400)
+            return
+        try:
+            deleted_path = delete_mod(mod_id)
+            if deleted_path:
+                self._send_json({"deleted": mod_id, "path": str(deleted_path)})
+            else:
+                self._send_json({"error": f"Mod not found: {mod_id}"}, 404)
+        except PermissionError as e:
+            self._send_json({"error": f"Cannot delete: {e}"}, 403)
 
     def _handle_profiles(self) -> None:
         from ..manager import list_profiles
