@@ -136,6 +136,35 @@
     <button class="tab-btn px-4 py-3 text-sm font-medium text-slate-400 hover:text-slate-200 rounded-t transition-colors" data-tab="bisect">Bisect</button>
   </nav>
 
+  <!-- Scope Bar -->
+  <div class="bg-surface-2 border-b border-surface-3 px-6 py-2">
+    <div class="max-w-5xl mx-auto flex items-center gap-4 text-xs">
+      <span class="text-slate-500 font-medium">Scope:</span>
+      <label class="flex items-center gap-1.5 cursor-pointer">
+        <input type="radio" name="scope" value="active" class="accent-emerald-500" checked onchange="setScope('active')">
+        <span class="text-slate-300">Active Mods</span>
+      </label>
+      <label class="flex items-center gap-1.5 cursor-pointer">
+        <input type="radio" name="scope" value="all" class="accent-emerald-500" onchange="setScope('all')">
+        <span class="text-slate-300">All Installed</span>
+      </label>
+      <label class="flex items-center gap-1.5 cursor-pointer">
+        <input type="radio" name="scope" value="profile" class="accent-emerald-500" onchange="setScope('profile')">
+        <span class="text-slate-300">Profile:</span>
+      </label>
+      <select id="scope-profile" onchange="onScopeProfileChange()"
+              class="bg-surface-3 border border-surface-4 rounded px-2 py-1 text-xs text-slate-100 focus:outline-none focus:border-pz-green disabled:opacity-40" disabled>
+        <option value="">No profiles</option>
+      </select>
+      <div class="flex items-center gap-2 ml-auto">
+        <input id="scope-profile-name" type="text" placeholder="Save as..."
+               class="bg-surface-3 border border-surface-4 rounded px-2 py-1 text-xs text-slate-100 w-28 focus:outline-none focus:border-pz-green">
+        <button onclick="saveProfile()"
+                class="bg-emerald-700 hover:bg-emerald-600 text-white px-2.5 py-1 rounded text-xs transition-colors">Save</button>
+      </div>
+    </div>
+  </div>
+
   <!-- Content -->
   <main class="max-w-5xl mx-auto p-6">
 
@@ -149,14 +178,6 @@
             <select id="scan-version"
                     class="bg-surface-3 border border-surface-4 rounded px-3 py-2 text-sm text-slate-100 w-40 focus:outline-none focus:border-pz-green">
               <option value="42.15.3">42.15.3</option>
-            </select>
-          </div>
-          <div>
-            <label class="block text-xs text-slate-400 mb-1">Scope</label>
-            <select id="scan-scope"
-                    class="bg-surface-3 border border-surface-4 rounded px-3 py-2 text-sm text-slate-100 w-44 focus:outline-none focus:border-pz-green">
-              <option value="1">Active mods only</option>
-              <option value="0">All installed mods</option>
             </select>
           </div>
           <button id="btn-scan" onclick="runScan()"
@@ -225,17 +246,6 @@
         <div id="mod-list" class="space-y-1 max-h-[60vh] overflow-y-auto pr-2"></div>
       </div>
 
-      <!-- Profiles -->
-      <div class="card p-5">
-        <h3 class="text-sm font-semibold text-slate-300 mb-3">Profiles</h3>
-        <div class="flex items-center gap-3 mb-4">
-          <input id="profile-name" type="text" placeholder="Profile name..."
-                 class="bg-surface-3 border border-surface-4 rounded px-3 py-2 text-sm text-slate-100 flex-1 focus:outline-none focus:border-pz-green">
-          <button onclick="saveProfile()"
-                  class="bg-emerald-700 hover:bg-emerald-600 text-white px-4 py-2 rounded text-sm transition-colors">Save Current</button>
-        </div>
-        <div id="profile-list" class="space-y-1"></div>
-      </div>
     </section>
 
     <!-- ==================== BISECT TAB ==================== -->
@@ -330,6 +340,73 @@ function toggleDevMode() {
 }
 
 /* ======================================================================
+   Scope
+   ====================================================================== */
+let currentScope = localStorage.getItem('pzmc-scope') || 'active';
+let currentProfileName = localStorage.getItem('pzmc-scope-profile') || '';
+let profilesCache = []; // [{name, mod_count, mod_ids}]
+
+function setScope(scope) {
+  currentScope = scope;
+  localStorage.setItem('pzmc-scope', scope);
+  // Enable/disable profile dropdown
+  const sel = $('scope-profile');
+  sel.disabled = scope !== 'profile';
+  // Update radio buttons
+  document.querySelectorAll('input[name="scope"]').forEach(r => r.checked = r.value === scope);
+  if (scope === 'profile' && !currentProfileName && profilesCache.length > 0) {
+    currentProfileName = profilesCache[0].name;
+    sel.value = currentProfileName;
+    localStorage.setItem('pzmc-scope-profile', currentProfileName);
+  }
+}
+
+function onScopeProfileChange() {
+  currentProfileName = $('scope-profile').value;
+  localStorage.setItem('pzmc-scope-profile', currentProfileName);
+}
+
+function getScopeParam() {
+  if (currentScope === 'all') return 'all';
+  if (currentScope === 'profile' && currentProfileName) return currentProfileName;
+  return 'active';
+}
+
+function getScopeModIds() {
+  // Returns null (no filter) or a Set of mod IDs for client-side filtering
+  if (currentScope === 'all') return null;
+  if (currentScope === 'profile' && currentProfileName) {
+    const p = profilesCache.find(p => p.name === currentProfileName);
+    return p ? new Set(p.mod_ids) : null;
+  }
+  return null; // 'active' filtering done server-side or via allMods.enabled
+}
+
+async function refreshScopeProfiles() {
+  try {
+    const data = await api('GET', '/api/profiles');
+    profilesCache = data.profiles || [];
+    const sel = $('scope-profile');
+    if (profilesCache.length === 0) {
+      sel.innerHTML = '<option value="">No profiles</option>';
+      sel.disabled = true;
+      return;
+    }
+    sel.innerHTML = profilesCache.map(p =>
+      `<option value="${esc(p.name)}">${esc(p.name)} (${p.mod_count})</option>`
+    ).join('');
+    sel.disabled = currentScope !== 'profile';
+    if (currentProfileName) sel.value = currentProfileName;
+  } catch (e) {}
+}
+
+// Restore scope on load
+requestAnimationFrame(() => {
+  setScope(currentScope);
+  refreshScopeProfiles();
+});
+
+/* ======================================================================
    Helpers
    ====================================================================== */
 async function api(method, path, body) {
@@ -393,7 +470,6 @@ document.querySelectorAll('.tab-btn').forEach(btn => {
 
     if (btn.dataset.tab === 'mods' && allMods.length === 0) refreshMods();
     if (btn.dataset.tab === 'bisect') refreshBisect();
-    if (btn.dataset.tab === 'mods') refreshProfiles();
   });
 });
 
@@ -409,8 +485,8 @@ async function runScan() {
 
   try {
     const ver = $('scan-version').value.trim() || '42.15.3';
-    const activeOnly = $('scan-scope').value;
-    const data = await api('GET', `/api/scan?version=${encodeURIComponent(ver)}&active_only=${activeOnly}`);
+    const scope = getScopeParam();
+    const data = await api('GET', `/api/scan?version=${encodeURIComponent(ver)}&scope=${encodeURIComponent(scope)}`);
     lastScanData = data;
 
     if (data.total_mods === 0) {
@@ -943,6 +1019,15 @@ function filterMods() {
   const sort = $('mod-sort').value;
 
   let list = allMods;
+
+  // Apply scope filter
+  const scopeIds = getScopeModIds();
+  if (currentScope === 'active') {
+    list = list.filter(m => m.enabled);
+  } else if (scopeIds) {
+    list = list.filter(m => scopeIds.has(m.mod_id));
+  }
+
   if (q) {
     list = list.filter(m =>
       m.mod_id.toLowerCase().includes(q) || (m.name || '').toLowerCase().includes(q)
@@ -993,55 +1078,24 @@ async function bulkMods(action) {
 /* ======================================================================
    PROFILES
    ====================================================================== */
-async function refreshProfiles() {
-  const el = $('profile-list');
-  try {
-    const data = await api('GET', '/api/profiles');
-    const profiles = data.profiles || [];
-    if (profiles.length === 0) {
-      el.innerHTML = '<div class="text-xs text-slate-500">No profiles saved.</div>';
-      return;
-    }
-    el.innerHTML = profiles.map(p => `
-      <div class="flex items-center justify-between bg-surface-1 rounded px-3 py-2">
-        <div>
-          <span class="text-sm text-slate-200">${esc(p.name)}</span>
-          <span class="text-xs text-slate-500 ml-2">${p.mod_count} mods</span>
-        </div>
-        <button onclick="loadProfile('${esc(p.name)}')"
-                class="text-xs bg-surface-3 hover:bg-surface-4 text-slate-300 px-3 py-1 rounded transition-colors">Load</button>
-      </div>
-    `).join('');
-  } catch (e) {
-    el.innerHTML = `<div class="text-xs text-red-400">${esc(e.message)}</div>`;
-  }
-}
-
 async function saveProfile() {
-  const name = $('profile-name').value.trim();
+  const name = $('scope-profile-name').value.trim();
   if (!name) { toast('Enter a profile name.', 'error'); return; }
   try {
     await api('POST', '/api/profile/save', { name });
-    $('profile-name').value = '';
-    refreshProfiles();
+    $('scope-profile-name').value = '';
+    await refreshScopeProfiles();
+    // Auto-select the new profile
+    currentProfileName = name;
+    localStorage.setItem('pzmc-scope-profile', name);
+    setScope('profile');
+    $('scope-profile').value = name;
     toast(`Profile "${name}" saved.`, 'success');
   } catch (e) {
     toast('Failed: ' + e.message, 'error');
   }
 }
 
-async function loadProfile(name) {
-  if (!confirm(`Load profile "${name}"? This will overwrite your current mod list.`)) return;
-  try {
-    const data = await api('POST', '/api/profile/load', { name });
-    if (data.error) { toast(data.error, 'error'); return; }
-    toast(`Profile "${name}" loaded. ${data.total_active} mods active.`, 'success');
-    refreshMods();
-    refreshHeader();
-  } catch (e) {
-    toast('Failed: ' + e.message, 'error');
-  }
-}
 
 /* ======================================================================
    BISECT

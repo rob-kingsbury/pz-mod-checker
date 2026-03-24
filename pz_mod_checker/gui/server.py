@@ -194,13 +194,15 @@ class PZModCheckerHandler(BaseHTTPRequestHandler):
         from ..scanner.discovery import discover_mods
 
         version = params.get("version", ["42.15.3"])[0]
-        active_only = params.get("active_only", ["1"])[0] == "1"
+        scope = params.get("scope", ["active"])[0]  # active, all, or profile name
         target = PZVersion.parse(version)
 
         ruleset = load_ruleset(_get_data_dir())
         all_mods = discover_mods()
 
-        if active_only:
+        if scope == "all":
+            mods = all_mods
+        elif scope == "active":
             try:
                 mod_list = read_mod_list()
                 active_ids = set(mod_list.mods)
@@ -208,7 +210,14 @@ class PZModCheckerHandler(BaseHTTPRequestHandler):
             except Exception:
                 mods = all_mods
         else:
-            mods = all_mods
+            # Scope is a profile name
+            try:
+                from ..manager import list_profiles
+                profiles = {p.name: set(p.mod_ids) for p in list_profiles()}
+                profile_ids = profiles.get(scope, set())
+                mods = [m for m in all_mods if m.mod_id in profile_ids] if profile_ids else all_mods
+            except Exception:
+                mods = all_mods
 
         if not mods:
             self._send_json({"total_mods": 0, "total_findings": 0, "mods": {}})
@@ -320,7 +329,7 @@ class PZModCheckerHandler(BaseHTTPRequestHandler):
         profiles = list_profiles()
         self._send_json({
             "profiles": [
-                {"name": p.name, "mod_count": len(p.mod_ids)}
+                {"name": p.name, "mod_count": len(p.mod_ids), "mod_ids": p.mod_ids}
                 for p in profiles
             ]
         })
