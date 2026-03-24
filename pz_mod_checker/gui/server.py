@@ -57,17 +57,20 @@ class PZModCheckerHandler(BaseHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(path.read_bytes())
 
-    def _read_body(self) -> dict:
+    def _read_body(self) -> dict | None:
+        """Read and parse JSON body. Returns None on error (response already sent)."""
         length = int(self.headers.get("Content-Length", 0))
         if length == 0:
             return {}
         if length > _MAX_BODY:
-            return {}
+            self._send_json({"error": "Request body too large"}, 413)
+            return None
         body = self.rfile.read(length)
         try:
             return json.loads(body)
         except json.JSONDecodeError:
-            return {}
+            self._send_json({"error": "Invalid JSON body"}, 400)
+            return None
 
     def do_GET(self) -> None:
         parsed = urlparse(self.path)
@@ -104,6 +107,8 @@ class PZModCheckerHandler(BaseHTTPRequestHandler):
         parsed = urlparse(self.path)
         path = parsed.path
         body = self._read_body()
+        if body is None:
+            return  # error already sent
 
         try:
             if path == "/api/mods/enable":
@@ -133,21 +138,31 @@ class PZModCheckerHandler(BaseHTTPRequestHandler):
 
     # --- API Handlers ---
 
-    def _handle_version(self) -> None:
-        from .. import __version__
-        from ..diagnose import get_console_log, parse_console_log
-        from ..manager import read_mod_list
+    # Cache for console.txt parsing (avoid re-parsing MBs on every refreshHeader)
+    _console_cache: dict = {"mtime": 0, "pz_version": "unknown", "session_date": ""}
 
-        pz_version = "unknown"
-        session_date = ""
+    def _get_console_info(self) -> tuple[str, str]:
+        from ..diagnose import get_console_log, parse_console_log
         try:
             log_path = get_console_log()
-            if log_path.is_file():
+            if not log_path.is_file():
+                return "unknown", ""
+            mtime = log_path.stat().st_mtime
+            cache = PZModCheckerHandler._console_cache
+            if mtime != cache["mtime"]:
                 diagnosis = parse_console_log(log_path)
-                pz_version = diagnosis.pz_version or "unknown"
-                session_date = diagnosis.session_start
+                cache["mtime"] = mtime
+                cache["pz_version"] = diagnosis.pz_version or "unknown"
+                cache["session_date"] = diagnosis.session_start
+            return cache["pz_version"], cache["session_date"]
         except Exception:
-            pass
+            return "unknown", ""
+
+    def _handle_version(self) -> None:
+        from .. import __version__
+        from ..manager import read_mod_list
+
+        pz_version, session_date = self._get_console_info()
 
         active_mods = 0
         try:

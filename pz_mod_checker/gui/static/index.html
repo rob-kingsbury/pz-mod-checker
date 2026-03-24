@@ -271,25 +271,7 @@
           </button>
         </div>
       </div>
-      <div id="bisect-status">
-        <div class="card p-5">
-          <h3 class="text-sm font-semibold text-slate-300 mb-3">How Bisect Works</h3>
-          <div class="space-y-3 text-sm text-slate-400">
-            <div class="flex gap-3 items-start">
-              <span class="bg-surface-3 text-pz-green font-bold rounded-full w-6 h-6 flex items-center justify-center flex-shrink-0 text-xs">1</span>
-              <span>Click <strong class="text-slate-200">Start Bisect</strong> &mdash; the tool saves your mod list and enables half your mods.</span>
-            </div>
-            <div class="flex gap-3 items-start">
-              <span class="bg-surface-3 text-pz-green font-bold rounded-full w-6 h-6 flex items-center justify-center flex-shrink-0 text-xs">2</span>
-              <span><strong class="text-slate-200">Launch PZ</strong>, then come back and click <strong class="text-red-400">PZ Crashed</strong> or <strong class="text-emerald-400">PZ Loaded OK</strong>.</span>
-            </div>
-            <div class="flex gap-3 items-start">
-              <span class="bg-surface-3 text-pz-green font-bold rounded-full w-6 h-6 flex items-center justify-center flex-shrink-0 text-xs">3</span>
-              <span>Repeat until the <strong class="text-slate-200">culprit mod</strong> is found. Usually takes 7-8 rounds for 165 mods.</span>
-            </div>
-          </div>
-        </div>
-      </div>
+      <div id="bisect-status"></div>
     </section>
 
   </main>
@@ -459,6 +441,59 @@ function toast(message, type = 'info') {
 }
 
 /* ======================================================================
+   Themed Confirm Modal
+   ====================================================================== */
+function confirmModal(message) {
+  return new Promise(resolve => {
+    const overlay = document.createElement('div');
+    overlay.className = 'fixed inset-0 z-50 flex items-center justify-center';
+    overlay.innerHTML = `
+      <div class="absolute inset-0 bg-black/60" data-action="confirm-cancel"></div>
+      <div class="relative bg-surface-2 border border-surface-3 rounded-lg p-6 max-w-sm mx-4 shadow-xl">
+        <p class="text-sm text-slate-200 mb-5">${esc(message)}</p>
+        <div class="flex justify-end gap-3">
+          <button data-action="confirm-cancel" class="bg-surface-3 hover:bg-surface-4 text-slate-300 px-4 py-2 rounded text-sm transition-colors">Cancel</button>
+          <button data-action="confirm-ok" class="bg-emerald-700 hover:bg-emerald-600 text-white px-4 py-2 rounded text-sm font-medium transition-colors">Confirm</button>
+        </div>
+      </div>`;
+    overlay.addEventListener('click', e => {
+      const action = e.target.dataset.action;
+      if (action === 'confirm-ok') { overlay.remove(); resolve(true); }
+      else if (action === 'confirm-cancel') { overlay.remove(); resolve(false); }
+    });
+    overlay.addEventListener('keydown', e => {
+      if (e.key === 'Escape') { overlay.remove(); resolve(false); }
+    });
+    document.body.appendChild(overlay);
+    overlay.querySelector('[data-action="confirm-ok"]').focus();
+  });
+}
+
+/* ======================================================================
+   Event Delegation (XSS-safe — no inline onclick with user data)
+   ====================================================================== */
+document.addEventListener('click', async (e) => {
+  const btn = e.target.closest('[data-action]');
+  if (!btn) return;
+
+  const action = btn.dataset.action;
+  const modId = btn.dataset.modId;
+
+  if (action === 'disable-mod' && modId) {
+    e.stopPropagation();
+    btn.disabled = true;
+    await disableMod(modId);
+    btn.disabled = false;
+  } else if (action === 'export' && modId) {
+    exportModFindings(modId, btn.dataset.format || 'text');
+  } else if (action === 'toggle-mod' && modId) {
+    btn.disabled = true;
+    await toggleMod(modId, btn.dataset.enable === 'true');
+    btn.disabled = false;
+  }
+});
+
+/* ======================================================================
    Tabs
    ====================================================================== */
 document.querySelectorAll('.tab-btn').forEach(btn => {
@@ -598,21 +633,21 @@ function renderScanResults(data) {
             <span class="text-xs text-slate-500">${esc(modId)}</span>
           </div>
           <div class="flex gap-2 items-center">
-            ${bc ? `<span class="severity-breaking px-2 py-0.5 rounded text-xs">${bc}</span>` : ''}
-            ${wc ? `<span class="severity-warning px-2 py-0.5 rounded text-xs">${wc}</span>` : ''}
-            ${ic ? `<span class="severity-info px-2 py-0.5 rounded text-xs">${ic}</span>` : ''}
-            ${hasBreaking ? `<button onclick="event.stopPropagation(); disableMod('${esc(modId)}')"
+            ${bc ? `<span class="severity-breaking px-2 py-0.5 rounded text-xs">${bc} brk</span>` : ''}
+            ${wc ? `<span class="severity-warning px-2 py-0.5 rounded text-xs">${wc} wrn</span>` : ''}
+            ${ic ? `<span class="severity-info px-2 py-0.5 rounded text-xs">${ic} inf</span>` : ''}
+            ${hasBreaking ? `<button data-action="disable-mod" data-mod-id="${esc(modId)}"
               class="ml-2 bg-red-800 hover:bg-red-700 text-red-200 px-2 py-0.5 rounded text-xs transition-colors">Disable</button>` : ''}
           </div>
         </summary>
         <div class="px-4 pb-4 space-y-2">
           ${renderFindingGroups(visible)}
           <div class="dev-only justify-end gap-2 pt-2 border-t border-surface-3 mt-2">
-            <button onclick="exportModFindings('${esc(modId)}', 'text')"
+            <button data-action="export" data-mod-id="${esc(modId)}" data-format="text"
               class="bg-surface-3 hover:bg-surface-4 text-slate-300 px-3 py-1 rounded text-xs transition-colors">Copy TXT</button>
-            <button onclick="exportModFindings('${esc(modId)}', 'markdown')"
+            <button data-action="export" data-mod-id="${esc(modId)}" data-format="markdown"
               class="bg-surface-3 hover:bg-surface-4 text-slate-300 px-3 py-1 rounded text-xs transition-colors">Copy MD</button>
-            <button onclick="exportModFindings('${esc(modId)}', 'json')"
+            <button data-action="export" data-mod-id="${esc(modId)}" data-format="json"
               class="bg-surface-3 hover:bg-surface-4 text-slate-300 px-3 py-1 rounded text-xs transition-colors">Copy JSON</button>
           </div>
         </div>
@@ -704,7 +739,7 @@ async function disableScanBreaking() {
     if (findings.some(f => f.severity === 'breaking')) ids.push(modId);
   }
   if (ids.length === 0) return;
-  if (!confirm(`Disable ${ids.length} mod(s) with breaking compatibility issues?`)) return;
+  if (!await confirmModal(`Disable ${ids.length} mod(s) with breaking compatibility issues?`)) return;
   try {
     const data = await api('POST', '/api/mods/disable-scan-breaking', { mod_ids: ids });
     toast(`Disabled ${(data.disabled || []).length} mod(s). ${data.total_active} mods still active.`, 'success');
@@ -899,7 +934,7 @@ async function runDiagnose() {
               </div>
               <div class="flex gap-2 items-center">
                 <span class="text-xs text-red-400 font-medium">${count} error${count !== 1 ? 's' : ''}</span>
-                ${info.mod_id ? `<button onclick="event.stopPropagation(); disableMod('${esc(info.mod_id)}')"
+                ${info.mod_id ? `<button data-action="disable-mod" data-mod-id="${esc(info.mod_id)}"
                   class="ml-2 bg-red-800 hover:bg-red-700 text-red-200 px-2 py-0.5 rounded text-xs transition-colors">Disable</button>` : ''}
               </div>
             </summary>
@@ -958,7 +993,7 @@ async function runDiagnose() {
 
 async function disableBreaking() {
   const btn = $('btn-disable-breaking');
-  if (!confirm('Disable all mods that caused errors in the last session?')) return;
+  if (!await confirmModal('Disable all mods that caused errors in the last session?')) return;
   btn.disabled = true;
   btn.textContent = 'Disabling...';
   try {
@@ -1007,9 +1042,10 @@ function renderMods(mods) {
         <div class="text-sm font-medium text-slate-200 truncate">${esc(m.name)}</div>
         <div class="text-xs text-slate-500 truncate">${esc(m.mod_id)}</div>
       </div>
-      <div class="toggle-track ${m.enabled ? 'on' : ''}" onclick="toggleMod('${esc(m.mod_id)}', ${!m.enabled})">
+      <button class="toggle-track ${m.enabled ? 'on' : ''}" role="switch" aria-checked="${m.enabled}"
+              tabindex="0" data-action="toggle-mod" data-mod-id="${esc(m.mod_id)}" data-enable="${!m.enabled}">
         <div class="toggle-thumb"></div>
-      </div>
+      </button>
     </div>
   `).join('');
 }
@@ -1043,8 +1079,11 @@ function filterMods() {
     case 'disabled': list.sort((a, b) => (a.enabled ? 1 : 0) - (b.enabled ? 1 : 0) || name(a).localeCompare(name(b))); break;
   }
 
+  lastFilteredMods = list;
   renderMods(list);
 }
+
+let lastFilteredMods = [];
 
 async function toggleMod(modId, enable) {
   const endpoint = enable ? '/api/mods/enable' : '/api/mods/disable';
@@ -1060,16 +1099,18 @@ async function toggleMod(modId, enable) {
 }
 
 async function bulkMods(action) {
-  const ids = allMods.map(m => m.mod_id);
+  const visible = lastFilteredMods.length > 0 ? lastFilteredMods : allMods;
+  const ids = visible.map(m => m.mod_id);
   if (ids.length === 0) return;
   const word = action === 'enable' ? 'Enable' : 'Disable';
-  if (!confirm(`${word} all ${ids.length} mods?`)) return;
+  if (!await confirmModal(`${word} ${ids.length} visible mod(s)?`)) return;
   try {
     await api('POST', `/api/mods/${action}`, { mod_ids: ids });
-    allMods.forEach(m => m.enabled = action === 'enable');
+    const idSet = new Set(ids);
+    allMods.forEach(m => { if (idSet.has(m.mod_id)) m.enabled = action === 'enable'; });
     filterMods();
     refreshHeader();
-    toast(`${word}d all ${ids.length} mods.`, 'success');
+    toast(`${word}d ${ids.length} mods.`, 'success');
   } catch (e) {
     toast('Failed: ' + e.message, 'error');
   }
@@ -1103,10 +1144,30 @@ async function saveProfile() {
 async function refreshBisect() {
   try {
     const data = await api('GET', '/api/bisect/status');
-    if (data.active) renderBisectState(data);
+    renderBisectState(data);
   } catch (e) {
-    // keep onboarding text if no active session
+    renderBisectState({ active: false });
   }
+}
+
+function bisectOnboardingHtml() {
+  return `<div class="card p-5">
+    <h3 class="text-sm font-semibold text-slate-300 mb-3">How Bisect Works</h3>
+    <div class="space-y-3 text-sm text-slate-400">
+      <div class="flex gap-3 items-start">
+        <span class="bg-surface-3 text-pz-green font-bold rounded-full w-6 h-6 flex items-center justify-center flex-shrink-0 text-xs">1</span>
+        <span>Click <strong class="text-slate-200">Start Bisect</strong> &mdash; the tool saves your mod list and enables half your mods.</span>
+      </div>
+      <div class="flex gap-3 items-start">
+        <span class="bg-surface-3 text-pz-green font-bold rounded-full w-6 h-6 flex items-center justify-center flex-shrink-0 text-xs">2</span>
+        <span><strong class="text-slate-200">Launch PZ</strong>, then come back and click <strong class="text-red-400">PZ Crashed</strong> or <strong class="text-emerald-400">PZ Loaded OK</strong>.</span>
+      </div>
+      <div class="flex gap-3 items-start">
+        <span class="bg-surface-3 text-pz-green font-bold rounded-full w-6 h-6 flex items-center justify-center flex-shrink-0 text-xs">3</span>
+        <span>Repeat until the <strong class="text-slate-200">culprit mod</strong> is found. Usually takes 7-8 rounds for 165 mods.</span>
+      </div>
+    </div>
+  </div>`;
 }
 
 function renderBisectState(data) {
@@ -1121,24 +1182,7 @@ function renderBisectState(data) {
     btnCrash.classList.add('hidden');
     btnOk.classList.add('hidden');
     btnAbort.classList.add('hidden');
-    el.innerHTML = `
-      <div class="card p-5">
-        <h3 class="text-sm font-semibold text-slate-300 mb-3">How Bisect Works</h3>
-        <div class="space-y-3 text-sm text-slate-400">
-          <div class="flex gap-3 items-start">
-            <span class="bg-surface-3 text-pz-green font-bold rounded-full w-6 h-6 flex items-center justify-center flex-shrink-0 text-xs">1</span>
-            <span>Click <strong class="text-slate-200">Start Bisect</strong> &mdash; the tool saves your mod list and enables half your mods.</span>
-          </div>
-          <div class="flex gap-3 items-start">
-            <span class="bg-surface-3 text-pz-green font-bold rounded-full w-6 h-6 flex items-center justify-center flex-shrink-0 text-xs">2</span>
-            <span><strong class="text-slate-200">Launch PZ</strong>, then come back and click <strong class="text-red-400">PZ Crashed</strong> or <strong class="text-emerald-400">PZ Loaded OK</strong>.</span>
-          </div>
-          <div class="flex gap-3 items-start">
-            <span class="bg-surface-3 text-pz-green font-bold rounded-full w-6 h-6 flex items-center justify-center flex-shrink-0 text-xs">3</span>
-            <span>Repeat until the <strong class="text-slate-200">culprit mod</strong> is found. Usually takes 7-8 rounds for 165 mods.</span>
-          </div>
-        </div>
-      </div>`;
+    el.innerHTML = bisectOnboardingHtml();
     return;
   }
 
@@ -1212,8 +1256,8 @@ async function bisectAction(action) {
     abort:  { method: 'POST', path: '/api/bisect/abort' },
   };
 
-  if (action === 'start' && !confirm('Start a new bisect session? Your current mod list will be modified.')) return;
-  if (action === 'abort' && !confirm('Abort bisect and restore original mod list?')) return;
+  if (action === 'start' && !await confirmModal('Start a new bisect session? Your current mod list will be modified.')) return;
+  if (action === 'abort' && !await confirmModal('Abort bisect and restore original mod list?')) return;
 
   const ep = endpoints[action];
   const el = $('bisect-status');
@@ -1327,9 +1371,12 @@ async function refreshHeader() {
    Init
    ====================================================================== */
 (function init() {
+  let detectedPZVersion = null;
+
   // Fetch version info (may be slow — reads console.txt + mod list)
   api('GET', '/api/version').then(data => {
     localVersion = data.tool_version || '0.1.0';
+    detectedPZVersion = data.pz_version && data.pz_version !== 'unknown' ? data.pz_version : null;
     $('app-version').textContent = 'v' + localVersion;
     $('pz-version').textContent = data.pz_version || 'not detected';
     $('active-mod-count').textContent = data.active_mods ?? '?';
@@ -1340,16 +1387,16 @@ async function refreshHeader() {
     if (emptyState && data.active_mods > 0) {
       emptyState.innerHTML = `Press <strong class="text-pz-green">Scan Mods</strong> to check your ${data.active_mods} active mods for B42 compatibility issues.`;
     }
+    // Re-populate dropdown with detected version if versions already loaded
     if (ruleVersions.length > 0) {
-      populateVersionDropdown(ruleVersions, data.pz_version);
+      populateVersionDropdown(ruleVersions, detectedPZVersion);
     }
-    // Check for updates after we know our version
     checkForUpdates();
   }).catch(() => {});
 
   // Fetch available rule versions (fast — just reads filenames)
   api('GET', '/api/versions').then(data => {
-    populateVersionDropdown(data.versions || []);
+    populateVersionDropdown(data.versions || [], detectedPZVersion);
   }).catch(() => {});
 })();
 
