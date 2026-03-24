@@ -1,78 +1,110 @@
-# PZ Mod Checker — Handoff
+# PZ Mod Checker -- Handoff
 
-**Last Updated:** 2026-03-24
+**Last Updated:** 2026-03-24 (Session 3)
 
 ## Current State
 
-Core tool complete and functional. Web GUI v1 deployed. Needs UX polish pass.
+Core tool complete. Web GUI v2 polished with full audit fixes. Ready for testing pass.
 
 ## What's Working
 
-- **Scanner** — 51 JSON rules covering B42.0 through B42.15, version-keyed filtering
-- **Diagnose** — Parses console.txt, identifies mod errors with MOD attribution, resolves names to IDs
-- **Manager** — Read/write default.txt, enable/disable mods, profiles, backups
-- **Workshop** — Steam API queries with cache, heuristic classification
-- **Bisect** — Binary search with dependency groups, state persistence, diagnose shortcut
-- **CLI** — 4 subcommands (scan, diagnose, manage, bisect) + --gui flag
-- **Web GUI** — Localhost dashboard at :8642, dark theme, 4 tabs, JSON API
-- **Tests** — 52+ tests, all passing
-- **Packaging** — pyproject.toml, pip install -e . works, JSON rules (no custom parser)
+- **Scanner** -- 51 JSON rules covering B42.0 through B42.15, version-keyed filtering
+- **Diagnose** -- Parses console.txt, identifies mod errors with MOD attribution, resolves names to IDs
+- **Manager** -- Read/write default.txt, enable/disable mods, profiles, backups
+- **Workshop** -- Steam API queries with cache, heuristic classification
+- **Bisect** -- Binary search with dependency groups, state persistence, diagnose shortcut
+- **CLI** -- 4 subcommands (scan, diagnose, manage, bisect) + --gui flag
+- **Web GUI v2** -- Full dashboard at :8642, see below
+- **Tests** -- 43+ tests, all passing
+- **Packaging** -- pyproject.toml, pip install -e . works, JSON rules
+- **GitHub** -- Repo at robotsmeller/pz-mod-checker, 15 issues tracked (#4-#18)
 
-## Immediate Next: GUI Improvement Pass
+## GUI v2 Features (Session 3)
 
-Combined feedback from Atlas (architecture), Morgan (UX), Soren (code), and user testing:
+### Layout
+- Global scope bar: Active Mods / All Installed / Profile (persistent, affects all tabs)
+- Tab descriptions explaining each tool's use case
+- Footer: credits (@robotsmeller), GitHub link, inline User Guide, Dev Mode toggle
+- Paginated scan results (25/page) with search filter
 
-### Critical Fixes
-1. Remove CORS `Access-Control-Allow-Origin: *` — security risk, not needed for same-origin
-2. Switch to `ThreadingHTTPServer` — prevents UI freeze during scan
-3. Add try/except to all server handlers — return JSON errors, not crashes
-4. Fix JS `api()` to check `res.ok` — handle server errors gracefully
-5. Escape single quotes in `esc()` — mod IDs with `'` break onclick handlers
+### Scan Tab
+- Version dropdown from rule files, auto-detects PZ version, labels like "42.15+ (latest)"
+- Severity filter toggles (keyboard-accessible, aria-pressed)
+- Results sorted by severity (breaking first)
+- Inline Disable buttons per mod (via event delegation, XSS-safe)
+- "Disable All Breaking" bulk action
+- Findings grouped by severity within each mod (breaking expanded, others collapsed)
+- Animated +/- indicators (CSS bar collapse)
 
-### High Priority UX
-6. Version dropdown from rule files — add `/api/versions` endpoint, pre-select detected PZ version
-7. "X/Y mods active" in header — show total discovered vs enabled
-8. Inline "Disable" buttons on scan/diagnose finding cards — act without switching tabs
-9. User-friendly require failure messages — explain what missing modules mean
-10. Empty state guidance before first scan — "Press Scan to check your 165 mods..."
-11. Replace `alert()` with toast notifications
+### Dev Mode (footer toggle, persists in localStorage)
+- Rule IDs on each finding
+- Per-mod export: Copy TXT / Copy MD / Copy JSON
+- Export All: full scan report to clipboard
+- Aimed at mod developers debugging their own mods
 
-### Medium Priority
-12. Sort scan results by severity (breaking first)
-13. Severity filter toggles on scan results
-14. "Disable All Breaking" button on scan results
-15. Bisect onboarding text (3-step explanation)
-16. Content-Length limit on POST bodies
-17. Use `get_data_dir()` in server instead of hardcoded path
+### Diagnose Tab
+- User-friendly require() failure explanations with fix suggestions
+- Inline Disable per mod
 
-### User Feedback
-- Require failures message needs plain language: "These mods use features removed in B42"
-- Use PZ-style colors (green-on-dark)
-- Everything should offer fix suggestions, not just report problems
+### Mods Tab
+- Sort: A-Z, Z-A, Enabled first, Disabled first
+- Scope-aware filtering
+- Toggle switches with role="switch", aria-checked, keyboard-accessible
 
-## After GUI Polish
+### Bisect Tab
+- 3-step onboarding guide (single source, rendered dynamically)
 
-### Priority Order (user-confirmed)
-1. ~~Bisect~~ ✅ Done
-2. GUI improvements (this pass)
-3. Distribution (PyInstaller .exe + pip publish) — see issue #2
-4. PZwiki API for rule discovery — deprioritized, user skeptical
+### Infrastructure
+- ThreadingHTTPServer prevents UI freezes
+- No CORS headers (same-origin only)
+- try/except on all handlers returns JSON errors
+- 400 on bad JSON, 413 on oversized body
+- console.txt parsing cached with mtime
+- discover_mods() cached with mtime
+- Toast notifications replace all alert()/confirm()
+- Themed confirm modal
+- Content-Length limit (1MB)
 
-### Open Issues
-- #1 — Future: Crowdsourced mod compatibility data
-- #2 — Enhancement: Localhost Web GUI + PyInstaller .exe distribution
-- #3 — Documentation: User Guide (README exists, needs ongoing updates)
+### Accessibility
+- Tab bar: role="tablist", role="tab", aria-selected, aria-controls, role="tabpanel"
+- Toggle switches: role="switch", aria-checked, tabindex
+- Severity pills: role="button", aria-pressed, keyboard handler
+- Docs panel: role="dialog", aria-modal, focus trap
+- Scope profile select: aria-label
+- Severity badges include text labels (brk/wrn/inf)
+
+### Docs
+- docs/user-guide.md -- full usage documentation
+- README.md -- project landing page (features, roadmap, API, architecture)
+- Inline User Guide fetches from GitHub (versioned tag first, main fallback, local fallback)
+- Version check: header badge when newer release available
+
+## Open Issues
+
+### Medium (logged, not yet fixed)
+- None remaining -- all #14-#18 fixed in session 3
+
+### Future
+- #1 -- Crowdsourced mod compatibility data
+- #2 -- PyInstaller .exe + pip publish
+- #3 -- Documentation updates (ongoing)
+
+## After This Session
+
+### Priority Order
+1. ~~GUI improvements~~ Done (session 3)
+2. Distribution (PyInstaller .exe + pip publish) -- see issue #2
+3. Workshop staleness detection (compare local mod timestamps vs Workshop time_updated)
+4. PZwiki API for rule discovery -- deprioritized
 
 ## Recent Commits
 ```
-2add07c Migrate rules to JSON, add web GUI, update README
-d573eb7 Add comprehensive README / user guide
-fde3ab7 Fix YAML parser double-escaping regex patterns
-d70a3c1 Audit fixes: false positives, input validation, shared paths, performance
-5665746 Add bisect: binary search for the mod crashing PZ
-d2a9118 Add version-keyed rules for B42.8 through B42.15
-1e6b265 Add diagnose, manager, and workshop modules with CLI subcommands
-478ef74 Audit fixes: security, correctness, performance, packaging
-ac543bd Fix Workshop mod discovery: handle mods/ subdirectory
-9a94744 Initial project: PZ Mod Checker v0.1.0
+3da57dd Fix 10 audit findings: XSS, accessibility, UX, performance
+9acb87d Global scope bar: Active/All/Profile scoping across all tabs
+d9e0c47 Tab descriptions, versioned docs, update checker, sort fix
+4e00812 Update GitHub URLs to robotsmeller org
+2cb7f30 Add inline user guide, split README into project page + docs
+a19efca GUI: dev mode, pagination, animated +/-, footer, mod sorting
+1aa04f4 Fix GUI init: split fetches so dropdown/header load independently
+05b8a89 GUI polish: 17 improvements from audit feedback
 ```

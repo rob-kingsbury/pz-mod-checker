@@ -22,6 +22,30 @@ def _get_data_dir() -> Path:
     return Path(__file__).resolve().parent.parent.parent / "data"
 
 
+# Cache for discover_mods() — avoids redundant filesystem traversals
+_mod_cache: dict = {"mtime": 0.0, "mods": []}
+
+
+def _cached_discover_mods() -> list:
+    """Return discovered mods, cached with mtime-based invalidation."""
+    from .scanner.discovery import discover_mods, get_default_mod_paths
+
+    # Check newest mtime across all mod directories
+    newest = 0.0
+    for d in get_default_mod_paths():
+        if d.is_dir():
+            try:
+                newest = max(newest, d.stat().st_mtime)
+            except OSError:
+                pass
+
+    if newest != _mod_cache["mtime"] or not _mod_cache["mods"]:
+        _mod_cache["mods"] = discover_mods()
+        _mod_cache["mtime"] = newest
+
+    return _mod_cache["mods"]
+
+
 class ThreadingHTTPServer(ThreadingMixIn, HTTPServer):
     daemon_threads = True
 
@@ -206,14 +230,13 @@ class PZModCheckerHandler(BaseHTTPRequestHandler):
         from ..rules.engine import check_all_mods
         from ..rules.loader import load_ruleset
         from ..rules.version import PZVersion
-        from ..scanner.discovery import discover_mods
 
         version = params.get("version", ["42.15.3"])[0]
         scope = params.get("scope", ["active"])[0]  # active, all, or profile name
         target = PZVersion.parse(version)
 
         ruleset = load_ruleset(_get_data_dir())
-        all_mods = discover_mods()
+        all_mods = _cached_discover_mods()
 
         if scope == "all":
             mods = all_mods

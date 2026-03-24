@@ -103,7 +103,7 @@
   <div id="toast-container"></div>
 
   <!-- Docs panel (overlay) -->
-  <div id="docs-panel">
+  <div id="docs-panel" role="dialog" aria-modal="true" aria-label="User Guide">
     <div id="docs-backdrop" onclick="closeDocs()"></div>
     <div id="docs-content">
       <div class="flex justify-between items-center mb-4">
@@ -129,11 +129,11 @@
   </header>
 
   <!-- Tabs -->
-  <nav class="bg-surface-2 border-b border-surface-3 flex px-6 gap-1">
-    <button class="tab-btn active px-4 py-3 text-sm font-medium text-slate-400 hover:text-slate-200 rounded-t transition-colors" data-tab="scan">Scan</button>
-    <button class="tab-btn px-4 py-3 text-sm font-medium text-slate-400 hover:text-slate-200 rounded-t transition-colors" data-tab="diagnose">Diagnose</button>
-    <button class="tab-btn px-4 py-3 text-sm font-medium text-slate-400 hover:text-slate-200 rounded-t transition-colors" data-tab="mods">Mods</button>
-    <button class="tab-btn px-4 py-3 text-sm font-medium text-slate-400 hover:text-slate-200 rounded-t transition-colors" data-tab="bisect">Bisect</button>
+  <nav class="bg-surface-2 border-b border-surface-3 flex px-6 gap-1" role="tablist" aria-label="Tool tabs">
+    <button class="tab-btn active px-4 py-3 text-sm font-medium text-slate-400 hover:text-slate-200 rounded-t transition-colors" role="tab" aria-selected="true" aria-controls="tab-scan" data-tab="scan">Scan</button>
+    <button class="tab-btn px-4 py-3 text-sm font-medium text-slate-400 hover:text-slate-200 rounded-t transition-colors" role="tab" aria-selected="false" aria-controls="tab-diagnose" data-tab="diagnose">Diagnose</button>
+    <button class="tab-btn px-4 py-3 text-sm font-medium text-slate-400 hover:text-slate-200 rounded-t transition-colors" role="tab" aria-selected="false" aria-controls="tab-mods" data-tab="mods">Mods</button>
+    <button class="tab-btn px-4 py-3 text-sm font-medium text-slate-400 hover:text-slate-200 rounded-t transition-colors" role="tab" aria-selected="false" aria-controls="tab-bisect" data-tab="bisect">Bisect</button>
   </nav>
 
   <!-- Scope Bar -->
@@ -152,7 +152,7 @@
         <input type="radio" name="scope" value="profile" class="accent-emerald-500" onchange="setScope('profile')">
         <span class="text-slate-300">Profile:</span>
       </label>
-      <select id="scope-profile" onchange="onScopeProfileChange()"
+      <select id="scope-profile" aria-label="Select profile" onchange="onScopeProfileChange()"
               class="bg-surface-3 border border-surface-4 rounded px-2 py-1 text-xs text-slate-100 focus:outline-none focus:border-pz-green disabled:opacity-40" disabled>
         <option value="">No profiles</option>
       </select>
@@ -169,7 +169,7 @@
   <main class="max-w-5xl mx-auto p-6">
 
     <!-- ==================== SCAN TAB ==================== -->
-    <section id="tab-scan" class="tab-panel">
+    <section id="tab-scan" class="tab-panel" role="tabpanel">
       <p class="text-xs text-slate-500 mb-3">Pre-launch check. Scans mod files for code patterns that break in your PZ version. Use this <strong class="text-slate-400">before</strong> launching PZ to catch issues early. Findings include fix suggestions where possible.</p>
       <div class="card p-5 mb-4">
         <div class="flex items-end gap-4">
@@ -200,7 +200,7 @@
     </section>
 
     <!-- ==================== DIAGNOSE TAB ==================== -->
-    <section id="tab-diagnose" class="tab-panel hidden">
+    <section id="tab-diagnose" class="tab-panel hidden" role="tabpanel">
       <p class="text-xs text-slate-500 mb-3">Post-crash forensics. Parses your last PZ session's <strong class="text-slate-400">console.txt</strong> to identify which mods caused errors. Best used <strong class="text-slate-400">after</strong> PZ crashes or misbehaves. Shows error counts per mod with stack traces.</p>
       <div class="card p-5 mb-4 flex items-center gap-4">
         <button id="btn-diagnose" onclick="runDiagnose()"
@@ -221,7 +221,7 @@
     </section>
 
     <!-- ==================== MODS TAB ==================== -->
-    <section id="tab-mods" class="tab-panel hidden">
+    <section id="tab-mods" class="tab-panel hidden" role="tabpanel">
       <p class="text-xs text-slate-500 mb-3">Mod manager. Enable or disable mods without launching PZ. Changes are written to <strong class="text-slate-400">default.txt</strong> and take effect on next PZ launch. Save profiles to quickly switch between mod configurations.</p>
       <div class="card p-5 mb-4">
         <div class="flex items-center gap-4 mb-4">
@@ -249,7 +249,7 @@
     </section>
 
     <!-- ==================== BISECT TAB ==================== -->
-    <section id="tab-bisect" class="tab-panel hidden">
+    <section id="tab-bisect" class="tab-panel hidden" role="tabpanel">
       <p class="text-xs text-slate-500 mb-3">Crash isolation. Binary search through your mods to find the one crashing PZ. Splits your mod list in half each round -- typically finds the culprit in <strong class="text-slate-400">7-8 rounds</strong> for 165 mods. Your original mod list is restored when done.</p>
       <div class="card p-5 mb-4">
         <div id="bisect-controls" class="flex items-center gap-3 flex-wrap">
@@ -498,9 +498,10 @@ document.addEventListener('click', async (e) => {
    ====================================================================== */
 document.querySelectorAll('.tab-btn').forEach(btn => {
   btn.addEventListener('click', () => {
-    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.tab-btn').forEach(b => { b.classList.remove('active'); b.setAttribute('aria-selected', 'false'); });
     document.querySelectorAll('.tab-panel').forEach(p => p.classList.add('hidden'));
     btn.classList.add('active');
+    btn.setAttribute('aria-selected', 'true');
     $('tab-' + btn.dataset.tab).classList.remove('hidden');
 
     if (btn.dataset.tab === 'mods' && allMods.length === 0) refreshMods();
@@ -562,11 +563,17 @@ function renderScanResults(data) {
         <div class="flex gap-2 items-center">
           <span class="text-xs text-slate-500 mr-1">Filter:</span>
           <span class="sev-pill severity-breaking px-2 py-0.5 rounded text-xs cursor-pointer ${activeSevFilters.has('breaking') ? 'active' : ''}"
-                onclick="toggleSevFilter('breaking')" title="Will crash or fail to load">${s.breaking || 0} breaking</span>
+                role="button" tabindex="0" aria-pressed="${activeSevFilters.has('breaking')}"
+                onclick="toggleSevFilter('breaking')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();toggleSevFilter('breaking')}"
+                title="Will crash or fail to load">${s.breaking || 0} breaking</span>
           <span class="sev-pill severity-warning px-2 py-0.5 rounded text-xs cursor-pointer ${activeSevFilters.has('warning') ? 'active' : ''}"
-                onclick="toggleSevFilter('warning')" title="May malfunction, needs checking">${s.warning || 0} warning</span>
+                role="button" tabindex="0" aria-pressed="${activeSevFilters.has('warning')}"
+                onclick="toggleSevFilter('warning')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();toggleSevFilter('warning')}"
+                title="May malfunction, needs checking">${s.warning || 0} warning</span>
           <span class="sev-pill severity-info px-2 py-0.5 rounded text-xs cursor-pointer ${activeSevFilters.has('info') ? 'active' : ''}"
-                onclick="toggleSevFilter('info')" title="Cosmetic or minor, likely still works">${s.info || 0} info</span>
+                role="button" tabindex="0" aria-pressed="${activeSevFilters.has('info')}"
+                onclick="toggleSevFilter('info')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();toggleSevFilter('info')}"
+                title="Cosmetic or minor, likely still works">${s.info || 0} info</span>
         </div>
       </div>
       <div class="flex items-center gap-3 mt-3 pt-3 border-t border-surface-3 flex-wrap">
@@ -1292,14 +1299,33 @@ function docsGitHubUrl(ref = 'main') {
   return `https://raw.githubusercontent.com/${DOCS_REPO}/${ref}/${DOCS_PATH}`;
 }
 
+let docsTrigger = null;
+
 function openDocs() {
-  $('docs-panel').classList.add('open');
+  docsTrigger = document.activeElement;
+  const panel = $('docs-panel');
+  panel.classList.add('open');
+  // Focus the close button for keyboard users
+  const closeBtn = panel.querySelector('button');
+  if (closeBtn) closeBtn.focus();
   if (!docsLoaded) loadDocs();
 }
 
 function closeDocs() {
   $('docs-panel').classList.remove('open');
+  if (docsTrigger) { docsTrigger.focus(); docsTrigger = null; }
 }
+
+// Focus trap for docs panel
+$('docs-panel').addEventListener('keydown', e => {
+  if (e.key !== 'Tab') return;
+  const panel = $('docs-content');
+  const focusable = panel.querySelectorAll('button, a[href], input, select, [tabindex]:not([tabindex="-1"])');
+  if (focusable.length === 0) return;
+  const first = focusable[0], last = focusable[focusable.length - 1];
+  if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
+  else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
+});
 
 async function loadDocs() {
   const body = $('docs-body');
