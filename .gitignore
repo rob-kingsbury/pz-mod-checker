@@ -10,3 +10,5 @@ build/
 venv/
 *.log
 .claude/settings.local.json
+scroll-analysis-output/
+.claude/settings.json
