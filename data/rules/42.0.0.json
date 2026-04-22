@@ -1,6 +1,6 @@
 {
   "version": "42.0.0",
-  "summary": "Major B42 release — crafting overhaul, item system rewrite, mod structure changes",
+  "summary": "Major B42 release — crafting overhaul, item system rewrite, mod structure changes. Note: ISInventoryPane/ISInventoryPaneContextMenu still exist in B42.",
   "source": "https://pzwiki.net/wiki/Build_42",
   "release_date": "2024-11-01",
   "changes": [
@@ -39,42 +39,6 @@
       "field": "versionMin",
       "condition": {"has_b42_folder": "true"},
       "group": "mod-structure"
-    },
-    {
-      "id": "b42-removed-isinventorypage",
-      "type": "api_removal",
-      "severity": "breaking",
-      "confidence": "certain",
-      "since": "42.0.0",
-      "description": "ISInventoryPage removed — inventory UI completely rewritten in B42",
-      "pattern": "ISInventoryPage",
-      "scan": "*.lua",
-      "context": "B42 replaced the entire inventory UI framework",
-      "group": "inventory-ui-rewrite"
-    },
-    {
-      "id": "b42-removed-isinventorypane",
-      "type": "api_removal",
-      "severity": "breaking",
-      "confidence": "certain",
-      "since": "42.0.0",
-      "description": "ISInventoryPane removed — part of B41 inventory UI",
-      "pattern": "ISInventoryPane",
-      "scan": "*.lua",
-      "context": "B42 replaced the entire inventory UI framework",
-      "group": "inventory-ui-rewrite"
-    },
-    {
-      "id": "b42-removed-isinventorypanecontextmenu",
-      "type": "api_removal",
-      "severity": "breaking",
-      "confidence": "certain",
-      "since": "42.0.0",
-      "description": "ISInventoryPaneContextMenu removed — inventory context menus rewritten in B42",
-      "pattern": "ISInventoryPaneContextMenu",
-      "scan": "*.lua",
-      "context": "B42 replaced the entire inventory UI framework including context menus",
-      "group": "inventory-ui-rewrite"
     },
     {
       "id": "b42-removed-istooltipinv",
