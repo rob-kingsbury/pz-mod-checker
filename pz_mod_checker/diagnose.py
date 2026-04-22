@@ -47,6 +47,9 @@ _REQUIRE_FAIL_RE = re.compile(
     r"WARN\s*:\s*Lua\s+.*require\(\"([^\"]+)\"\)\s+failed"
 )
 
+# Lua file loading line — matches "loading path/to/file.lua" in log
+_LUA_FILE_LOAD_RE = re.compile(r">\s*[Ll]oading\s+(.+?\.lua)\s*$")
+
 # Timestamp extraction from any log line
 _TIMESTAMP_RE = re.compile(r"t:(\d+)>")
 
@@ -88,6 +91,8 @@ class RequireFailure:
 
     module_path: str     # e.g., "ISUI/ISInventoryPaneContextMenu"
     timestamp_ms: int = 0
+    source_file: str | None = None   # Lua file that called require()
+    mod_name: str | None = None      # Mod folder name extracted from source_file
 
 
 @dataclass
@@ -198,17 +203,26 @@ def parse_console_log(log_path: Path) -> SessionDiagnosis:
     # 4. Parse errors and stack traces
     mod_errors: list[ModError] = []
     require_failures: list[RequireFailure] = []
+    last_lua_file: str | None = None  # Most recently seen Lua loading line
 
     i = 0
     while i < len(lines):
         line = lines[i]
 
+        # Track the most recently loaded Lua file for require() attribution
+        lf_m = _LUA_FILE_LOAD_RE.search(line)
+        if lf_m:
+            last_lua_file = lf_m.group(1).strip()
+
         # Check for require failures
         m = _REQUIRE_FAIL_RE.search(line)
         if m:
+            mod_name = _extract_mod_from_lua_path(last_lua_file) if last_lua_file else None
             require_failures.append(RequireFailure(
                 module_path=m.group(1),
                 timestamp_ms=_extract_timestamp(line),
+                source_file=last_lua_file,
+                mod_name=mod_name,
             ))
             i += 1
             continue
@@ -374,6 +388,78 @@ def _parse_stack_trace(lines: list[str], start_idx: int) -> list[StackFrame]:
     return frames
 
 
+def attribute_require_failures(
+    diagnosis: SessionDiagnosis,
+    mod_dirs: list[Path] | None = None,
+) -> None:
+    """Attribute require() failures to the mods whose Lua files call them.
+
+    Scans installed mod Lua files for require() calls matching each failure.
+    Expands require_failures in-place: one entry per (module, calling mod) pair.
+    Failures with no callers found keep mod_name=None.
+    """
+    unattributed = [f for f in diagnosis.require_failures if not f.mod_name]
+    if not unattributed:
+        return
+
+    failed_modules = {f.module_path for f in unattributed}
+    mods = discover_mods(mod_dirs)
+
+    # Match both require("mod") and require "mod" (Lua shorthand without parens)
+    _require_re = re.compile(r'\brequire\s*\(?\s*["\']([^"\']+)["\']')
+    callers: dict[str, list[str]] = {m: [] for m in failed_modules}
+
+    for mod in mods:
+        mod_label = mod.name or mod.mod_id or mod.path.name
+        mod_called: set[str] = set()
+        for lua_file in mod.path.rglob("*.lua"):
+            try:
+                content = lua_file.read_text(encoding="utf-8", errors="replace")
+            except OSError:
+                continue
+            for m in _require_re.finditer(content):
+                module = m.group(1)
+                if module in failed_modules and module not in mod_called:
+                    mod_called.add(module)
+                    callers[module].append(mod_label)
+
+    # Replace unattributed entries with per-caller entries
+    attributed: list[RequireFailure] = []
+    for failure in diagnosis.require_failures:
+        if failure.mod_name:
+            attributed.append(failure)
+            continue
+        caller_list = callers.get(failure.module_path, [])
+        if not caller_list:
+            attributed.append(failure)
+        else:
+            for caller in caller_list:
+                attributed.append(RequireFailure(
+                    module_path=failure.module_path,
+                    timestamp_ms=failure.timestamp_ms,
+                    source_file=failure.source_file,
+                    mod_name=caller,
+                ))
+
+    diagnosis.require_failures = attributed
+
+
+def _extract_mod_from_lua_path(file_path: str) -> str | None:
+    """Extract mod folder name from a Lua file path.
+
+    Works for both user mods (/mods/<name>/...) and workshop paths
+    (.../workshop/content/108600/<id>/mods/<name>/...).
+    """
+    normalized = file_path.replace("\\", "/")
+    lower = normalized.lower()
+    idx = lower.find("/mods/")
+    if idx >= 0:
+        rest = normalized[idx + 6:]
+        mod_folder = rest.split("/")[0]
+        return mod_folder if mod_folder else None
+    return None
+
+
 def _map_severity(level: str) -> str:
     """Map PZ log level to our severity."""
     match level:
@@ -444,8 +530,8 @@ def diagnose_last_session(
 
     diagnosis = parse_console_log(log_path)
 
-    # Resolve display names to mod IDs
     name_to_id = build_name_to_id_map(mod_dirs)
     resolve_mod_names(diagnosis, name_to_id)
+    attribute_require_failures(diagnosis, mod_dirs)
 
     return diagnosis

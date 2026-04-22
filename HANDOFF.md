@@ -1,16 +1,20 @@
 # PZ Mod Checker -- Handoff
 
-**Last Updated:** 2026-04-15 (end of Session 7)
+**Last Updated:** 2026-04-22 (end of Session 8)
 
 ```yaml
-session: 8
+session: 9
 continue_with: Distribution (#2) — pip publish and/or PyInstaller .exe
 blockers: none
 ```
 
 ## Current State
 
-60 rules covering B42.0 through B42.16.3 (2 false positives removed). 73 tests passing. 2 open issues (both deferred). Translation shim feature complete.
+62 rules covering B42.0 through B42.17.0. 76 tests passing. 2 open issues (both deferred). Diagnose require() attribution now working. Unbreaker project spun out as separate repo.
+
+## Session 8 Summary
+
+Added 42.17.0 rules (MapRemotePlayerVisibility, VHS skill tapes). Removed 3 false positive inventory UI rules (ISInventoryPane/ISInventoryPaneContextMenu/ISInventoryPage confirmed present in B42.17). Added enable button to scan page mod cards. Diagnose require() failures: now attributed to calling mods by scanning Lua files. Fixed require scan regex to handle `require "module"` shorthand (no parens). Export buttons (TXT/MD/JSON) added to diagnose require failures section. Spun out Unbreaker as standalone Workshop mod project (c:\xampp\htdocs\unbreaker, github.com/rob-kingsbury/unbreaker).
 
 ## What's Working
 

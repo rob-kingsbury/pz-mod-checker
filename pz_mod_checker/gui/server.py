@@ -393,6 +393,7 @@ class PZModCheckerHandler(BaseHTTPRequestHandler):
 
     def _handle_diagnose(self) -> None:
         from ..diagnose import (
+            attribute_require_failures,
             build_name_to_id_map,
             get_console_log,
             parse_console_log,
@@ -407,6 +408,7 @@ class PZModCheckerHandler(BaseHTTPRequestHandler):
         diagnosis = parse_console_log(log_path)
         name_to_id = build_name_to_id_map()
         resolve_mod_names(diagnosis, name_to_id)
+        attribute_require_failures(diagnosis)
         self._send_json(asdict(diagnosis))
 
     def _handle_mods(self) -> None:

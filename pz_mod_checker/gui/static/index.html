@@ -1222,12 +1222,42 @@ async function runDiagnose() {
     // Require failures with user-friendly explanation
     if (reqFails.length > 0) {
       const unique = [...new Set(reqFails.map(r => r.module_path))].sort();
+
+      // Group by mod_name (fall back to source_file basename, then '[Unknown mod]')
+      const byMod = {};
+      for (const r of reqFails) {
+        const key = r.mod_name
+          || (r.source_file ? r.source_file.replace(/\\/g, '/').split('/').pop() : null)
+          || '[Unknown mod]';
+        if (!byMod[key]) byMod[key] = new Set();
+        byMod[key].add(r.module_path);
+      }
+      const modEntries = Object.entries(byMod).sort((a, b) => b[1].size - a[1].size);
+
+      // Store export data on window so onclick handlers can reach it without embedding in HTML attrs
+      window._reqExports = {
+        txt: modEntries.map(([mod, mods]) =>
+          mod + '\n' + [...mods].map(m => '  ' + m).join('\n')
+        ).join('\n\n'),
+        md: '# Missing require() modules\n\n' + modEntries.map(([mod, mods]) =>
+          `## ${mod}\n` + [...mods].map(m => `- \`${m}\``).join('\n')
+        ).join('\n\n'),
+        json: JSON.stringify(modEntries.map(([mod, mods]) => ({
+          mod, missing_modules: [...mods]
+        })), null, 2),
+      };
+
       html += `
-        <details class="card mt-4">
+        <details class="card mt-4" open>
           <summary class="p-4 flex items-center justify-between hover:bg-surface-3 rounded-lg transition-colors">
             <div class="flex items-center gap-3">
               <span class="severity-warning px-2 py-0.5 rounded text-xs">WARN</span>
-              <span class="text-slate-200">${unique.length} missing require() module${unique.length !== 1 ? 's' : ''}</span>
+              <span class="text-slate-200">${unique.length} missing require() module${unique.length !== 1 ? 's' : ''} across ${modEntries.length} mod${modEntries.length !== 1 ? 's' : ''}</span>
+            </div>
+            <div class="flex gap-1">
+              <button onclick="event.stopPropagation();copyReqExport('txt')" class="text-xs px-2 py-1 rounded bg-surface-2 text-slate-400 hover:text-slate-200 hover:bg-surface-3 transition-colors" title="Copy as plain text">TXT</button>
+              <button onclick="event.stopPropagation();copyReqExport('md')" class="text-xs px-2 py-1 rounded bg-surface-2 text-slate-400 hover:text-slate-200 hover:bg-surface-3 transition-colors" title="Copy as Markdown">MD</button>
+              <button onclick="event.stopPropagation();copyReqExport('json')" class="text-xs px-2 py-1 rounded bg-surface-2 text-slate-400 hover:text-slate-200 hover:bg-surface-3 transition-colors" title="Copy as JSON">JSON</button>
             </div>
           </summary>
           <div class="px-4 pb-4">
@@ -1238,8 +1268,15 @@ async function runDiagnose() {
             <p class="text-xs text-pz-green mb-3">
               Fix: Check if each mod has a B42-compatible update on the Workshop. If not, disable it.
             </p>
-            <div class="bg-surface-1 rounded p-3 text-xs font-mono text-slate-400 space-y-0.5 max-h-48 overflow-y-auto">
-              ${unique.map(m => `<div>${esc(m)}</div>`).join('')}
+            <div class="space-y-2">
+              ${modEntries.map(([mod, mods]) => `
+                <div class="bg-surface-1 rounded p-3">
+                  <div class="text-sm font-medium text-slate-200 mb-1.5">${esc(mod)}</div>
+                  <div class="text-xs font-mono text-slate-400 space-y-0.5">
+                    ${[...mods].sort().map(m => `<div class="text-amber-400/80">${esc(m)}</div>`).join('')}
+                  </div>
+                </div>
+              `).join('')}
             </div>
           </div>
         </details>`;
@@ -1252,6 +1289,11 @@ async function runDiagnose() {
     btn.disabled = false;
     btn.textContent = 'Analyze Last Session';
   }
+}
+
+function copyReqExport(fmt) {
+  const data = window._reqExports && window._reqExports[fmt];
+  if (data) navigator.clipboard.writeText(data);
 }
 
 async function disableBreaking() {
