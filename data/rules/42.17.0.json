@@ -1,0 +1,31 @@
+{
+  "version": "42.17.0",
+  "summary": "New sandbox start locations, skill VHS tapes, occupation balance tweaks, MapRemotePlayerVisibility extended to 4 values",
+  "source": "https://store.steampowered.com/news/app/108600/view/573787410484167426",
+  "release_date": "2026-04-20",
+  "changes": [
+    {
+      "id": "b42-17-map-remote-player-visibility",
+      "type": "api_signature",
+      "severity": "warning",
+      "confidence": "likely",
+      "since": "42.17.0",
+      "description": "MapRemotePlayerVisibility sandbox option gained value 3 in 42.17 ('Friends and nearby users') -- mods with if/else chains for values 0-2 will silently miss the new case",
+      "pattern": "MapRemotePlayerVisibility",
+      "scan": "*.lua",
+      "context": "42.17 added map remote player visibility = 3: faction members visible at any distance, others visible only when nearby and in line-of-sight. Mods that switch or compare against this var without a fallback for value 3 will silently ignore the new setting."
+    },
+    {
+      "id": "b42-17-new-skill-vhs-tapes",
+      "type": "deprecated",
+      "severity": "info",
+      "confidence": "speculative",
+      "since": "42.17.0",
+      "description": "9 new skill VHS tapes added in 42.17 -- mods hardcoding VHS skill tape lists may be incomplete",
+      "pattern": "VHSTape|VHSBox",
+      "regex": true,
+      "scan": "*.lua",
+      "context": "42.17 added skill VHS tapes for: Aiming, Animal Care, Blacksmithing, Electrical, First Aid, Knapping, Pottery, Tailoring, Welding. Mods that enumerate or define VHS skill item distributions should include these new entries."
+    }
+  ]
+}

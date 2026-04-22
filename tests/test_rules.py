@@ -530,6 +530,62 @@ def test_b42_16_lua_filesystem_security():
         assert len(findings_before) == 0
 
 
+# --- 42.17.0 rule tests ---
+
+def test_b42_17_map_remote_player_visibility():
+    """Mods referencing MapRemotePlayerVisibility should be flagged on 42.17+."""
+    with tempfile.TemporaryDirectory() as tmp:
+        mod = _make_mod_with_lua(Path(tmp), lua_content="if SandboxVars.MapRemotePlayerVisibility == 2 then doThing() end")
+        rule = Rule(
+            id="b42-17-map-remote-player-visibility",
+            type="api_signature",
+            severity="warning",
+            since="42.17.0",
+            description="MapRemotePlayerVisibility gained value 3 in 42.17",
+            pattern="MapRemotePlayerVisibility",
+            scan="*.lua",
+        )
+        findings = check_mod(mod, RuleSet(rules=[rule]), PZVersion.parse("42.17.0"))
+        assert len(findings) == 1
+        assert findings[0].rule_id == "b42-17-map-remote-player-visibility"
+
+
+def test_b42_17_map_remote_player_visibility_not_before():
+    """MapRemotePlayerVisibility rule should not trigger before 42.17.0."""
+    with tempfile.TemporaryDirectory() as tmp:
+        mod = _make_mod_with_lua(Path(tmp), lua_content="if SandboxVars.MapRemotePlayerVisibility == 2 then doThing() end")
+        rule = Rule(
+            id="b42-17-map-remote-player-visibility",
+            type="api_signature",
+            severity="warning",
+            since="42.17.0",
+            description="MapRemotePlayerVisibility gained value 3 in 42.17",
+            pattern="MapRemotePlayerVisibility",
+            scan="*.lua",
+        )
+        findings = check_mod(mod, RuleSet(rules=[rule]), PZVersion.parse("42.16.0"))
+        assert len(findings) == 0
+
+
+def test_b42_17_new_skill_vhs_tapes():
+    """Mods referencing VHSTape or VHSBox items should get an info finding on 42.17+."""
+    with tempfile.TemporaryDirectory() as tmp:
+        mod = _make_mod_with_lua(Path(tmp), lua_content='local vhs = {\"VHSTape_Skill_Cooking\", \"VHSTape_Skill_Carpentry\"}')
+        rule = Rule(
+            id="b42-17-new-skill-vhs-tapes",
+            type="deprecated",
+            severity="info",
+            since="42.17.0",
+            description="9 new skill VHS tapes added in 42.17",
+            pattern="VHSTape|VHSBox",
+            regex=True,
+            scan="*.lua",
+        )
+        findings = check_mod(mod, RuleSet(rules=[rule]), PZVersion.parse("42.17.0"))
+        assert len(findings) == 1
+        assert findings[0].rule_id == "b42-17-new-skill-vhs-tapes"
+
+
 if __name__ == "__main__":
     test_load_rules()
     test_load_no_comp()
