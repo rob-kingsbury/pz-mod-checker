@@ -405,8 +405,8 @@ def attribute_require_failures(
     failed_modules = {f.module_path for f in unattributed}
     mods = discover_mods(mod_dirs)
 
-    # Match both require("mod") and require "mod" (Lua shorthand without parens)
-    _require_re = re.compile(r'\brequire\s*\(?\s*["\']([^"\']+)["\']')
+    # Match require("mod"), require "mod", and pcall(require, "mod")
+    _require_re = re.compile(r'\brequire\s*(?:[\(,]\s*)?["\']([^"\']+)["\']')
     callers: dict[str, list[str]] = {m: [] for m in failed_modules}
 
     for mod in mods:

@@ -1,0 +1,117 @@
+{
+  "version": "42.0.0",
+  "summary": "Field-case derived rules: patterns observed in real B41 mods that break on B42. These apply from 42.0.0 onward as they reflect B41-era coding patterns incompatible with B42's Java-backed item system and restructured APIs.",
+  "source": "data/cases/field-cases.md",
+  "release_date": "2024-11-01",
+  "note": "Rules in this file were derived from real-world mod triage sessions, not from PZ changelog diffs. See data/cases/field-cases.md for full case write-ups and shim implementations.",
+  "changes": [
+    {
+      "id": "b42-removed-bagsandcontainers",
+      "type": "api_removal",
+      "severity": "breaking",
+      "confidence": "certain",
+      "since": "42.0.0",
+      "description": "BagsAndContainers was removed in B42 — distribution mods inserting into it crash on load and silently skip all their loot table entries",
+      "pattern": "BagsAndContainers",
+      "scan": "*.lua",
+      "context": "BagsAndContainers was a B41 global table for bag-type container distributions (Bag_Police, ALICEpack_Army, etc.). In B42 it was merged into ProceduralDistributions. Any mod doing table.insert(BagsAndContainers.X.items, ...) will get a nil-index error that kills the entire distribution file. Case: SimpleSilencers (3309896124) RC-002-B."
+    },
+    {
+      "id": "b42-require-npcs-bodylocations",
+      "type": "api_removal",
+      "severity": "breaking",
+      "confidence": "certain",
+      "since": "42.0.0",
+      "description": "require \"NPCs/BodyLocations\" is a B41 path — in B42 the module is \"BodyLocations\". The require fails and the entire file errors, preventing custom body locations from being registered.",
+      "pattern": "NPCs/BodyLocations",
+      "scan": "*.lua",
+      "context": "B41 shared body location files lived under NPCs/. B42 reorganised the module path. Any mod doing require \"NPCs/BodyLocations\" will crash on load, meaning all getOrCreateLocation() and setExclusive() calls in that file never run. Case: KATTAJ1 Clothes Core (3470422050) RC-001-B."
+    },
+    {
+      "id": "b42-require-npcs-prefix",
+      "type": "api_removal",
+      "severity": "warning",
+      "confidence": "likely",
+      "since": "42.0.0",
+      "description": "require paths starting with \"NPCs/\" are B41-era paths — most have moved in B42",
+      "pattern": "require\\s+[\"']NPCs/",
+      "regex": true,
+      "scan": "*.lua",
+      "context": "The NPCs/ module path prefix was a B41 convention. B42 reorganised shared modules. Any require \"NPCs/X\" is a signal of B41-era code. Not all will crash (some may still resolve) but all should be audited. Case: KATTAJ1 Clothes Core RC-001-B."
+    },
+    {
+      "id": "b42-removed-istooltipinv",
+      "type": "api_removal",
+      "severity": "breaking",
+      "confidence": "likely",
+      "since": "42.0.0",
+      "description": "ISToolTipInv was changed/removed in B42 — mods monkey-patching ISToolTipInv.render crash on load",
+      "pattern": "ISToolTipInv",
+      "scan": "*.lua",
+      "context": "B41 mods commonly patched ISToolTipInv.render to suppress vanilla tooltips when custom container clothing was equipped. In B42 this class changed significantly. Requires and method patches against it throw errors on load. Case: KATTAJ1 Clothes Core (3470422050) RC-001-C."
+    },
+    {
+      "id": "b42-lua-outside-lua-folder",
+      "type": "structure",
+      "severity": "warning",
+      "confidence": "certain",
+      "since": "42.0.0",
+      "description": "Lua files placed in media/ root (outside media/lua/) are silently ignored by PZ — code never runs",
+      "path": "media/",
+      "check": "no_lua_in_media_root",
+      "scan": "*.lua",
+      "context": "PZ only auto-executes Lua from media/lua/shared/, media/lua/client/, and media/lua/server/. A Lua file placed directly in media/ (e.g. media/registries.lua) is never loaded. This is a silent failure — no error, code just never runs. Case: KATTAJ1 Clothes Core (3470422050) RC-001-A: registries.lua in media/ root meant body location registry never executed."
+    },
+    {
+      "id": "b42-weaponpart-canon-renamed",
+      "type": "api_rename",
+      "severity": "breaking",
+      "confidence": "certain",
+      "since": "42.0.0",
+      "description": "Weapon part slot \"Canon\" renamed to \"Muzzle\" in B42 — getWeaponPart(\"Canon\") always returns nil",
+      "old_pattern": "getWeaponPart\\s*\\(\\s*[\"']Canon[\"']\\s*\\)",
+      "new_name": "getWeaponPart(\"Muzzle\") or getMuzzle()",
+      "regex": true,
+      "scan": "*.lua",
+      "context": "B41 mods checking for a mounted muzzle accessory used getWeaponPart(\"Canon\"). B42 renamed this weapon part slot to \"Muzzle\" and added a convenience method getMuzzle(). getWeaponPart(\"Canon\") returns nil silently, so sound suppression, visual model checks, etc. all fail without any error. Case: SimpleSilencers (3309896124) RC-002-A."
+    },
+    {
+      "id": "b42-java-field-access-projectilecount",
+      "type": "api_rename",
+      "severity": "warning",
+      "confidence": "likely",
+      "since": "42.0.0",
+      "description": "item.projectileCount is a B41 Lua field access pattern — in B42 Java-backed objects require item:getProjectileCount()",
+      "old_pattern": "\\.projectileCount[^(\\w]",
+      "new_name": ":getProjectileCount()",
+      "regex": true,
+      "scan": "*.lua",
+      "context": "In B41, some item properties were accessible as plain Lua table fields. In B42, item objects are Java-backed and require method calls. Accessing .projectileCount (no colon, no parens) always returns nil, causing shotgun detection logic to fail silently — all multi-projectile weapons are misclassified. Case: NepUniversalSS (3634876505) RC-003-B."
+    },
+    {
+      "id": "b42-java-field-access-twohandweapon",
+      "type": "api_rename",
+      "severity": "warning",
+      "confidence": "likely",
+      "since": "42.0.0",
+      "description": "item.twoHandWeapon is a B41 Lua field access pattern — in B42 Java-backed objects require item:isTwoHandWeapon()",
+      "old_pattern": "\\.twoHandWeapon[^(\\w]",
+      "new_name": ":isTwoHandWeapon()",
+      "regex": true,
+      "scan": "*.lua",
+      "context": "Same class of bug as b42-java-field-access-projectilecount. .twoHandWeapon always returns nil in B42, causing two-handed weapon (rifle/longarm) classification to silently fail. All longarms are misclassified as pistols. Case: NepUniversalSS (3634876505) RC-003-C."
+    },
+    {
+      "id": "b42-class-conflict-isupgradeweapon",
+      "type": "api_signature",
+      "severity": "warning",
+      "confidence": "likely",
+      "since": "42.0.0",
+      "description": "Mods declaring ISUpgradeWeapon at global scope clobber the vanilla B42 class of the same name",
+      "pattern": "ISUpgradeWeapon\\s*=\\s*ISBaseTimedAction",
+      "regex": true,
+      "scan": "*.lua",
+      "context": "ISUpgradeWeapon is a vanilla B42 timed action class for weapon upgrades. At least one mod (SimpleSilencers) also defines a class with this exact name via ISBaseTimedAction:derive(), clobbering the vanilla version and breaking vanilla weapon upgrade actions. Case: SimpleSilencers (3309896124) RC-002-C."
+    }
+  ]
+}

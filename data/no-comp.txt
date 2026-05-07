@@ -11,3 +11,39 @@
 # Examples (uncomment and verify before using):
 # SuperbSurvivors|41.78.16|Uses removed NPC pathfinding internals, B41-only architecture
 # Arsenal26ForBuild41|41.78.16|Hardcoded B41 UI framework, author confirmed no B42 update
+#
+# --- Field-case reference entries (shims available, not blocking) ---
+# Last updated: 2026-05-02. See data/cases/field-cases.md for full triage notes.
+#
+# KATTAJ1_ClothesCore: registries.lua at media/ root (never loads), NPCs/BodyLocations B41 path,
+# ISToolTipInv crash. Shim: kattaj1_42_17_shim. Workshop: 3470422050
+# Uncomment if shim is removed and mod is unpatched:
+# KATTAJ1_ClothesCore|42.15.x|registries.lua at wrong path; require NPCs/BodyLocations B41; ISToolTipInv crash
+#
+# SimpleSilencers: getWeaponPart("Canon") renamed to Muzzle, BagsAndContainers removed,
+# ISUpgradeWeapon class conflict. Shim: simplesilencers_42_17_shim. Workshop: 3309896124
+# Uncomment if shim is removed and mod is unpatched:
+# SimpleSilencers|42.15.x|getWeaponPart Canon->Muzzle rename; BagsAndContainers removed; ISUpgradeWeapon class conflict
+#
+# NepUniversalSS: ItemType.WEAPON comparison broken, .projectileCount/.twoHandWeapon Java field access,
+# missing versionMin. Shim included in simplesilencers_42_17_shim. Workshop: 3634876505
+# Uncomment if shim is removed and mod is unpatched:
+# NepUniversalSS|42.x|ItemType.WEAPON comparison; .projectileCount/.twoHandWeapon Java field access; no versionMin
+#
+# --- Session 8 (2026-04-22) require() failures, attributed via diagnose ---
+#
+# WaterPipes: require "wp_vsquare" on every action file, but wp_vsquare module doesn't exist
+# in the mod. Self-broken require. Workshop: 3546314080
+# WaterPipes|42.x|self-broken require for wp_vsquare module that doesn't exist in mod files
+#
+# AutotsarMotorClub (Tchernobill B42 port): AMC_AquaConfig.lua does require 'AquaConfig' but
+# the file is named AMC_AquaConfig - filename/require mismatch. Workshop: 3404737883
+# AutotsarMotorClub|42.x|AMC_AquaConfig.lua requires 'AquaConfig' but no AquaConfig.lua exists
+#
+# TowTruckMod: requires PaintVehicleConfig from Paint Your Vehicle mod which is not standard
+# B42-compatible. Workshop: 3446203945
+# TowTruckMod|42.x|requires PaintVehicleConfig from Paint Your Vehicle mod (B41-era dep)
+#
+# SmokeLikeIts93: literal `require 'Items/'` (empty path with trailing slash) on line 2 of
+# server/SmokeLikeIts93.lua. Harmless warning but indicates author error. Workshop: 3393726240
+# SmokeLikeIts93|42.x|stray require 'Items/' empty path warning, otherwise functional
