@@ -1,0 +1,42 @@
+{
+  "version": "42.18.0",
+  "summary": "Modding improvements and bug fixes. Key breaking change: ZomboidFileSystem.validatePrefix now rejects FBX models stored under common/media/models_X/ — affects damnlib, KI5 vehicle mods, TacHold, KATTAJ1 Clothes Core, and others.",
+  "source": "https://steamcommunity.com/games/108600/announcements/detail/653727478219539021",
+  "release_date": "2026-05-11",
+  "changes": [
+    {
+      "id": "b42-18-invalid-prefix-models-x",
+      "type": "structure",
+      "severity": "breaking",
+      "confidence": "certain",
+      "since": "42.18.0",
+      "description": "Mod stores FBX models in common/media/models_X/ — rejected by B42.18 ZomboidFileSystem.validatePrefix. Models fail to load at runtime with 'Invalid prefix found for' errors.",
+      "path": "common/media/models_X",
+      "check": "dir_present",
+      "context": "B42.18 tightened ZomboidFileSystem.validatePrefix path validation. FBX files under common/media/models_X/ are no longer accepted. Models must be moved to 42/media/models_X/ and all vehicle/model script references updated to match. Empirically observed affecting: damnlib, AutotsarMotorClub, TacHold, KATTAJ1 Clothes Core, KI5trailers, Buttstroke, AliceMod, ClimbDownRope.",
+      "group": "model-paths"
+    },
+    {
+      "id": "b42-18-safehouse-option-rename",
+      "type": "api_rename",
+      "severity": "warning",
+      "confidence": "certain",
+      "since": "42.18.0",
+      "description": "Server sandbox option DisableSafehouseWhenPlayerConnected renamed to DisableSafehouseWhenOwnerConnected in B42.18.",
+      "pattern": "DisableSafehouseWhenPlayerConnected",
+      "scan": "*.lua",
+      "context": "B42.18 renamed this server option. Mods reading or comparing this sandbox setting by name will silently get nil/default instead of the server's configured value."
+    },
+    {
+      "id": "b42-18-fluid-container-whitespace",
+      "type": "deprecated",
+      "severity": "warning",
+      "confidence": "speculative",
+      "since": "42.18.0",
+      "description": "B42.18 FluidContainerScript now sanitizes container names containing whitespace — names like 'Large Bucket' are auto-renamed, which may break mods referencing them by exact string.",
+      "pattern": "FluidContainer",
+      "scan": "*.lua",
+      "context": "B42.18 added validation that rejects fluid container script names containing spaces. Mods that define fluid containers with multi-word names, or look them up by a name string containing spaces, may get unexpected results."
+    }
+  ]
+}

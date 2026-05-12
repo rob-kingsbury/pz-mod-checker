@@ -53,9 +53,15 @@ _LUA_FILE_LOAD_RE = re.compile(r">\s*[Ll]oading\s+(.+?\.lua)\s*$")
 # Timestamp extraction from any log line
 _TIMESTAMP_RE = re.compile(r"t:(\d+)>")
 
-# Java exception
+# Java exception (KahluaThread / ExceptionLogger)
 _JAVA_EXCEPTION_RE = re.compile(
     r"(ERROR|SEVERE)\s*:.*ExceptionLogger\.logException\s*>\s*Exception\s+thrown"
+)
+
+# B42.18+: ZomboidFileSystem.validatePrefix rejects FBX files in common/media/models_X/
+# The path appears on the "Caused by:" line of the FileSystemImpl.updateAsyncTransactions exception
+_INVALID_PREFIX_RE = re.compile(
+    r"Caused by: java\.lang\.IllegalArgumentException: Invalid prefix found for: (.+)"
 )
 
 
@@ -105,6 +111,7 @@ class SessionDiagnosis:
     mod_errors: list[ModError] = field(default_factory=list)
     require_failures: list[RequireFailure] = field(default_factory=list)
     error_count_by_mod: dict[str, int] = field(default_factory=dict)  # mod_name -> count
+    invalid_prefix_errors: dict[str, int] = field(default_factory=dict)  # mod_name -> count (B42.18+)
 
 
 # ---------------------------------------------------------------------------
@@ -203,6 +210,7 @@ def parse_console_log(log_path: Path) -> SessionDiagnosis:
     # 4. Parse errors and stack traces
     mod_errors: list[ModError] = []
     require_failures: list[RequireFailure] = []
+    invalid_prefix_errors: dict[str, int] = {}
     last_lua_file: str | None = None  # Most recently seen Lua loading line
 
     i = 0
@@ -213,6 +221,14 @@ def parse_console_log(log_path: Path) -> SessionDiagnosis:
         lf_m = _LUA_FILE_LOAD_RE.search(line)
         if lf_m:
             last_lua_file = lf_m.group(1).strip()
+
+        # B42.18+: Invalid prefix (ZomboidFileSystem.validatePrefix) — extract mod from path
+        m = _INVALID_PREFIX_RE.search(line)
+        if m:
+            mod_name = _extract_mod_from_lua_path(m.group(1)) or "[unknown]"
+            invalid_prefix_errors[mod_name] = invalid_prefix_errors.get(mod_name, 0) + 1
+            i += 1
+            continue
 
         # Check for require failures
         m = _REQUIRE_FAIL_RE.search(line)
@@ -307,6 +323,7 @@ def parse_console_log(log_path: Path) -> SessionDiagnosis:
         mod_errors=mod_errors,
         require_failures=require_failures,
         error_count_by_mod=error_count_by_mod,
+        invalid_prefix_errors=invalid_prefix_errors,
     )
 
 

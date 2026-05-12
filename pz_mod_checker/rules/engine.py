@@ -247,6 +247,12 @@ def _check_structure(mod: ModInfo, rule: Rule) -> list[Finding]:
         case "file_exists":
             if not target.is_file():
                 return [_make_finding(mod, rule, context=f"Missing file: {rule.path}")]
+        case "dir_present":
+            if target.is_dir():
+                return [_make_finding(mod, rule, context=f"Problematic directory present: {rule.path}")]
+        case "file_present":
+            if target.is_file():
+                return [_make_finding(mod, rule, context=f"Problematic file present: {rule.path}")]
         case _:
             if rule.check:
                 print(f"Warning: Unknown check type '{rule.check}' for rule '{rule.id}'.", file=sys.stderr)

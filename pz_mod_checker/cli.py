@@ -335,16 +335,20 @@ def _print_diagnosis(diagnosis, use_color: bool = True) -> None:
     print(f"  PZ version: {diagnosis.pz_version}")
     print(f"  Mods loaded: {len(diagnosis.mods_loaded)}")
     print(f"  Require failures: {len(diagnosis.require_failures)}")
+    if diagnosis.invalid_prefix_errors:
+        total_pfx = sum(diagnosis.invalid_prefix_errors.values())
+        print(f"  Invalid prefix errors: {total_pfx} across {len(diagnosis.invalid_prefix_errors)} mod(s)")
     print()
 
-    if not diagnosis.mod_errors:
+    if not diagnosis.mod_errors and not diagnosis.invalid_prefix_errors:
         print(f"  {C_GRN}No mod errors found in last session.{C_RST}")
         print()
         return
 
-    print(f"  {C_RED}{C_BLD}{len(diagnosis.mod_errors)} errors across "
-          f"{len(diagnosis.error_count_by_mod)} mod(s):{C_RST}")
-    print()
+    if diagnosis.mod_errors:
+        print(f"  {C_RED}{C_BLD}{len(diagnosis.mod_errors)} Lua errors across "
+              f"{len(diagnosis.error_count_by_mod)} mod(s):{C_RST}")
+        print()
 
     for mod_name, count in sorted(
         diagnosis.error_count_by_mod.items(), key=lambda x: -x[1]
@@ -358,6 +362,15 @@ def _print_diagnosis(diagnosis, use_color: bool = True) -> None:
         if first_error.stack_frames:
             frame = first_error.stack_frames[0]
             print(f"    {C_DIM}at {frame.file_name}:{frame.line_number}{C_RST}")
+        print()
+
+    if diagnosis.invalid_prefix_errors:
+        total_pfx = sum(diagnosis.invalid_prefix_errors.values())
+        print(f"  {C_RED}[BREAKING]{C_RST} {total_pfx} invalid prefix errors (B42.18 validatePrefix):")
+        for mod_name, count in sorted(diagnosis.invalid_prefix_errors.items(), key=lambda x: -x[1]):
+            print(f"    {C_DIM}{count:3d}x  {mod_name}{C_RST}")
+        print(f"    {C_DIM}Cause: mod stores FBX models under common/media/models_X/ — rejected by 42.18.{C_RST}")
+        print(f"    {C_DIM}Fix: mod author must move models to 42/media/models_X/ and update model paths.{C_RST}")
         print()
 
     if diagnosis.require_failures:
