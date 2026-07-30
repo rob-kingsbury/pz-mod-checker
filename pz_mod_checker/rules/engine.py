@@ -288,6 +288,75 @@ def _find_stray_lua(mod: ModInfo) -> list[str]:
     return sorted(stray)
 
 
+_LUA_LONG_BRACKET = re.compile(r"--\[(=*)\[")
+
+
+def _strip_lua_comments(lines: list[str]) -> list[str]:
+    """Blank out Lua comments, preserving line count and column positions.
+
+    Pattern rules match raw source, so a rule's own documentation or a
+    commented-out call reports as a real finding. Comment spans are replaced
+    with spaces rather than removed so line numbers and offsets still line up
+    with the original file. String literals are tracked so a `--` inside a
+    quoted string is not mistaken for a comment.
+    """
+    out: list[str] = []
+    block_level: str | None = None  # the `=` run of the open long bracket
+
+    for line in lines:
+        kept: list[str] = []
+        quote: str | None = None
+        i = 0
+        while i < len(line):
+            ch = line[i]
+
+            if block_level is not None:
+                close = "]" + block_level + "]"
+                if line.startswith(close, i):
+                    block_level = None
+                    kept.append(" " * len(close))
+                    i += len(close)
+                else:
+                    kept.append(" ")
+                    i += 1
+                continue
+
+            if quote is not None:
+                kept.append(ch)
+                if ch == "\\" and i + 1 < len(line):
+                    kept.append(line[i + 1])
+                    i += 2
+                    continue
+                if ch == quote:
+                    quote = None
+                i += 1
+                continue
+
+            if ch in ("'", '"'):
+                quote = ch
+                kept.append(ch)
+                i += 1
+                continue
+
+            match = _LUA_LONG_BRACKET.match(line, i)
+            if match:
+                block_level = match.group(1)
+                kept.append(" " * (match.end() - i))
+                i = match.end()
+                continue
+
+            if line.startswith("--", i):
+                kept.append(" " * (len(line) - i))
+                break
+
+            kept.append(ch)
+            i += 1
+
+        out.append("".join(kept))
+
+    return out
+
+
 def _check_pattern(mod: ModInfo, rule: Rule, file_cache: FileCache) -> list[Finding]:
     """Check for pattern matches in Lua files (api_removal, api_rename, deprecated)."""
     pattern = rule.old_pattern if rule.old_pattern else rule.pattern
@@ -318,12 +387,18 @@ def _check_pattern(mod: ModInfo, rule: Rule, file_cache: FileCache) -> list[Find
     hits: list[tuple[Path, int, str]] = []  # (file_path, line_num, line_text)
     for file_path in files:
         lines = _cached_read_lines(file_path, file_cache)
-        for line_num, line in enumerate(lines, start=1):
+        # Match against comment-stripped text but report the original line, so a
+        # rule's own documentation or commented-out code is not a finding.
+        if file_path.suffix == ".lua":
+            search_lines = _strip_lua_comments(lines)
+        else:
+            search_lines = lines
+        for line_num, (line, search_line) in enumerate(zip(lines, search_lines), start=1):
             if compiled is not None:
-                if compiled.search(line):
+                if compiled.search(search_line):
                     hits.append((file_path, line_num, line.strip()))
             else:
-                if pattern in line:
+                if pattern in search_line:
                     hits.append((file_path, line_num, line.strip()))
 
     findings: list[Finding] = []
