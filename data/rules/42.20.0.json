@@ -1,0 +1,47 @@
+{
+  "version": "42.20.0",
+  "summary": "Build 42 Stable. Very quiet for modders: a file-level diff of the vanilla Lua tree between 42.19 and 42.20 shows exactly one file changing root (gamepadBinding, shared to client) and two meaningful removals (ISFarmingCursor, and the LastStand Challenge2 family). 133 of the 137 redirects Unbreaker ships were unaffected.",
+  "source": "https://store.steampowered.com/news/app/108600/view/717912016810934441",
+  "release_date": "2026-07-29",
+  "changes": [
+    {
+      "id": "b42-20-gamepadbinding-moved-to-client",
+      "type": "deprecated",
+      "severity": "warning",
+      "confidence": "certain",
+      "since": "42.20.0",
+      "description": "B42.20 moved gamepadBinding.lua from media/lua/shared to media/lua/client. A require for it from a shared or server context now returns nil.",
+      "pattern": "require\\s*\\(?\\s*[\"']gamepadBinding[\"']",
+      "regex": true,
+      "scan": "*.lua",
+      "context": "The 42.20 changelog states the file was moved 'to prevent client-side bindings from being overridden on server join'. Confirmed by diffing the 42.19 vanilla Lua mirror against an installed 42.20: this is the ONLY file in the entire build that changed root. The global gamepadBinding is still set at the top level of client/gamepadBinding.lua, so client-context code is unaffected and this warning can be ignored if the requiring file is itself client-side. Unbreaker covers it from data v0.8.0 onward.",
+      "group": "b42-20-moves"
+    },
+    {
+      "id": "b42-20-isfarmingcursor-removed",
+      "type": "deprecated",
+      "severity": "breaking",
+      "confidence": "certain",
+      "since": "42.20.0",
+      "description": "ISFarmingCursor was deleted in B42.20. The global no longer exists and the module cannot be required.",
+      "pattern": "ISFarmingCursor(?!Mouse)",
+      "regex": true,
+      "scan": "*.lua",
+      "context": "server/Farming/BuildingObjects/ISFarmingCursor.lua existed in 42.19 and is gone in 42.20. The changelog never mentions it; this was found by file diff. The surviving sibling ISFarmingCursorMouse is NOT a drop-in replacement, which is why no automatic redirect exists and why this rule does not name it as a replacement: both derive ISBuildingObject and share create, new, render, getAPrompt, getLBPrompt and getRBPrompt, but the deleted class also had getObjectList, isValid, onJoypadPressButton and rotateKey. Porting is a real code change, not a rename. The regex deliberately excludes ISFarmingCursorMouse so surviving code is not flagged.",
+      "group": "b42-20-removals"
+    },
+    {
+      "id": "b42-20-challenge2-removed",
+      "type": "deprecated",
+      "severity": "breaking",
+      "confidence": "certain",
+      "since": "42.20.0",
+      "description": "The LastStand Challenge2 module and its five ISChallenge2* UI windows were removed in B42.20 when the Challenge Modes were revamped.",
+      "pattern": "Challenge2",
+      "regex": false,
+      "scan": "*.lua",
+      "context": "42.20 replaced 'Cabin in the Woods' in the challenge rotation with two new modes, '28 Minutes Later' and 'Top of the World'. Removed with it: client/LastStand/Challenge2 plus ISChallenge2PlayerUpWindow, ISChallenge2UpgradeTab, ISChallenge2VariousItemWindow, ISChallenge2WeaponRepairWindow and ISChallenge2WeaponUpWindow. The replacements are client/LastStand/28MinutesLater and client/LastStand/TopOfTheWorld, which are new modes rather than renamed classes, so there is no mechanical port. Only affects challenge-mode mods.",
+      "group": "b42-20-removals"
+    }
+  ]
+}

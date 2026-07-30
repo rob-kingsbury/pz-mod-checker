@@ -1,0 +1,34 @@
+{
+  "version": "42.19.0",
+  "summary": "Backfilled after the fact. The 42.18 and 42.19 changelogs were read as purely additive at the time, but two vanilla globals that existed in 42.17 were already gone by 42.19. Neither removal appears in either changelog. Found by diffing the 42.19 vanilla Lua mirror against an installed 42.20.",
+  "source": "https://github.com/Project-Zomboid-Community-Modding/ProjectZomboid-Vanilla-Lua/commit/29df4fe",
+  "release_date": "2026-06-02",
+  "changes": [
+    {
+      "id": "b42-19-charactercustomisationpanel-removed",
+      "type": "deprecated",
+      "severity": "breaking",
+      "confidence": "speculative",
+      "since": "42.19.0",
+      "description": "CharacterCustomisationPanel no longer exists. The CharacterCustomisation/ and BodyDetailWindow/ directories are gone from the vanilla Lua tree.",
+      "pattern": "CharacterCustomisationPanel",
+      "regex": false,
+      "scan": "*.lua",
+      "context": "Confidence is 'speculative' about the BUILD, not about the removal. The removal is certain: zero occurrences in the 42.19 mirror, zero in an installed 42.20, and no matching class in projectzomboid.jar. It was verified live in 42.17, so it died in either 42.18 or 42.19 and is filed under 42.19 as the later bound. Checking the 42.18 commit of the vanilla Lua mirror would pin it exactly. Unbreaker shipped a redirect for this until data v0.8.0, when it was demoted to unrecoverable.",
+      "group": "b42-19-silent-removals"
+    },
+    {
+      "id": "b42-19-commontemplates-removed",
+      "type": "deprecated",
+      "severity": "breaking",
+      "confidence": "speculative",
+      "since": "42.19.0",
+      "description": "The CommonTemplates module and global no longer exist anywhere in the vanilla game.",
+      "pattern": "CommonTemplates",
+      "regex": false,
+      "scan": "*.lua",
+      "context": "Same situation as CharacterCustomisationPanel: certain removal, uncertain build. Zero occurrences of the string anywhere under media/ in either the 42.19 mirror or an installed 42.20, and no jar class. Verified live in 42.17, so it went in 42.18 or 42.19. Filed under 42.19 as the later bound. Unbreaker demoted its redirect to unrecoverable in data v0.8.0.",
+      "group": "b42-19-silent-removals"
+    }
+  ]
+}

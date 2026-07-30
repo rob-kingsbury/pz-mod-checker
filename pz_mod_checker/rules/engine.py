@@ -253,11 +253,39 @@ def _check_structure(mod: ModInfo, rule: Rule) -> list[Finding]:
         case "file_present":
             if target.is_file():
                 return [_make_finding(mod, rule, context=f"Problematic file present: {rule.path}")]
+        case "no_lua_in_media_root":
+            stray = _find_stray_lua(mod)
+            if stray:
+                shown = ", ".join(stray[:3])
+                more = f" (+{len(stray) - 3} more)" if len(stray) > 3 else ""
+                return [_make_finding(
+                    mod, rule,
+                    context=f"Lua outside media/lua, never executed by PZ: {shown}{more}",
+                )]
         case _:
             if rule.check:
                 print(f"Warning: Unknown check type '{rule.check}' for rule '{rule.id}'.", file=sys.stderr)
 
     return []
+
+
+def _find_stray_lua(mod: ModInfo) -> list[str]:
+    """Return Lua files sitting under a media/ root but outside its lua/ subfolder.
+
+    PZ only auto-executes Lua inside media/lua/. Anything else is dead code that
+    fails silently. Every media root the mod actually has is checked, not just
+    mod.path/media: B42 mods keep theirs under 42/media or common/media, and some
+    use a point-release folder such as 42.15/media.
+    """
+    roots = [p for p in (*mod.path.glob("media"), *mod.path.glob("*/media")) if p.is_dir()]
+    stray: list[str] = []
+    for media in roots:
+        for lua_file in media.rglob("*.lua"):
+            rel = lua_file.relative_to(media)
+            if rel.parts[:1] == ("lua",):
+                continue
+            stray.append(lua_file.relative_to(mod.path).as_posix())
+    return sorted(stray)
 
 
 def _check_pattern(mod: ModInfo, rule: Rule, file_cache: FileCache) -> list[Finding]:
