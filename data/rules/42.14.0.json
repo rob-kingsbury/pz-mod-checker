@@ -1,9 +1,22 @@
 {
   "version": "42.14.0",
-  "summary": "Ammunition rework, fluid container removals, item removals",
+  "summary": "Ammunition rework, fluid container removals, item removals, and the security patch that gated Java reflection outside debug mode",
   "source": "https://pzwiki.net/wiki/Build_42.14.0",
   "release_date": "2026-02-16",
   "changes": [
+    {
+      "id": "b42-14-java-reflection-gated",
+      "type": "api_removal",
+      "severity": "breaking",
+      "confidence": "certain",
+      "since": "42.14.0",
+      "description": "Java reflection helpers are blocked outside debug mode since the 42.14 security patch. Calls throw IllegalStateException 'Not in debug' and the surrounding logic silently gets nil.",
+      "pattern": "\\bget(NumClassFields|ClassFields?|ClassFieldVal|ClassFieldNum)\\s*\\(",
+      "regex": true,
+      "scan": "*.lua",
+      "context": "The 42.14 security patch added LuaManager.validateReflectionAccess, which throws 'Not in debug at LuaManager.validateReflectionAccess' when these are called in a normal session. 42.20 restored some modding API lost to that patch, but reflection is still gated. The failure is quiet and expensive: the call throws, a pcall or the event handler swallows it, and the feature just does nothing while the log fills up. Observed on a 42.20 install: Aim Outline calls these from OnPlayerUpdate and logged 7,850 stack lines in one session while drawing no outline at all, and Spongie's Open Jackets uses the same helpers to read private BodyLocations fields. Fix is to replace field reflection with the public accessor on the Java class where one exists, for example HitInfo has getObject(). Where no public accessor exists the mod needs an upstream API addition, not a workaround.",
+      "group": "reflection-gate"
+    },
     {
       "id": "b42-14-223-ammo-removed",
       "type": "api_removal",
