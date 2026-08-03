@@ -1,6 +1,6 @@
 {
   "version": "42.20.0",
-  "summary": "Build 42 Stable. Very quiet for modders: a file-level diff of the vanilla Lua tree between 42.19 and 42.20 shows exactly one file changing root (gamepadBinding, shared to client) and two meaningful removals (ISFarmingCursor, and the LastStand Challenge2 family). 133 of the 137 redirects Unbreaker ships were unaffected.",
+  "summary": "Build 42 Stable. Quiet in the Lua tree -- a file-level diff between 42.19 and 42.20 shows one file changing root (gamepadBinding, shared to client) and two meaningful removals (ISFarmingCursor, and the LastStand Challenge2 family). But the tree diff is not the whole story: 42.20 also narrowed getFileWriter to a whitelist of file extensions, which no file diff can surface because the change is Java-side. Any mod that writes .json from Lua breaks silently and hard. 133 of the 137 redirects Unbreaker ships were unaffected.",
   "source": "https://store.steampowered.com/news/app/108600/view/717912016810934441",
   "release_date": "2026-07-29",
   "changes": [
@@ -42,6 +42,19 @@
       "scan": "*.lua",
       "context": "42.20 replaced 'Cabin in the Woods' in the challenge rotation with two new modes, '28 Minutes Later' and 'Top of the World'. Removed with it: client/LastStand/Challenge2 plus ISChallenge2PlayerUpWindow, ISChallenge2UpgradeTab, ISChallenge2VariousItemWindow, ISChallenge2WeaponRepairWindow and ISChallenge2WeaponUpWindow. The replacements are client/LastStand/28MinutesLater and client/LastStand/TopOfTheWorld, which are new modes rather than renamed classes, so there is no mechanical port. Only affects challenge-mode mods.",
       "group": "b42-20-removals"
+    },
+    {
+      "id": "b42-20-getfilewriter-extension-whitelist",
+      "type": "api_signature",
+      "severity": "breaking",
+      "confidence": "certain",
+      "since": "42.20.0",
+      "description": "getFileWriter refuses to open files with certain extensions in B42.20 and returns nil instead of a writer. Writing .json, .dat or .tmp fails; .txt, .ini and .cfg still work. Calling a method on the nil result throws 'attempted index: close of non-table: null'.",
+      "pattern": "getFileWriter\\s*\\(\\s*[\"'][^\"']*\\.(json|dat|tmp)[\"']",
+      "regex": true,
+      "scan": "*.lua",
+      "context": "Measured directly on an installed 42.20.0 with a capability probe that varied three dimensions independently: extension, overwrite vs append (3rd arg), and root vs subdirectory of Zomboid/Lua/. Result: .txt, .ini and .cfg opened in all four combinations; .json, .dat and .tmp opened in none. The append flag and the directory make no difference, so this is purely an extension check. A control probe on a file already known to be writable (log.txt, append) returned true, ruling out the probe itself being at fault. getFileReader is NOT affected: .json files remain readable, so a mod that reads config it never writes will not notice. IMPORTANT SCOPE LIMITS: only those six extensions were tested, so the full accepted set is unknown -- treat .txt/.ini/.cfg as known-good rather than as the whole whitelist. The attribution to 42.20 specifically is inferred from timeline rather than an A/B test against 42.19: the affected tool last wrote .json successfully on 2026-07-26 and 42.20 shipped 2026-07-29. The regex only catches string literals, so paths built from variables or concatenation will be missed; a mod doing its own file I/O should be checked by hand. Fix is to change the extension (contents can stay JSON) and to nil-guard the writer, since the failure mode is a nil return rather than a thrown error at the call site. Watch for double extensions too: a sentinel named 'foo.json.ready' is rejected on the .ready, not the .json.",
+      "group": "b42-20-file-io"
     }
   ]
 }
