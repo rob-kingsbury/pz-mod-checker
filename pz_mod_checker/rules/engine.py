@@ -282,11 +282,21 @@ def _find_stray_lua(mod: ModInfo) -> list[str]:
     for media in roots:
         for lua_file in media.rglob("*.lua"):
             rel = lua_file.relative_to(media)
-            if rel.parts[:1] == ("lua",):
+            if rel.parts[:1] in _MEDIA_LUA_DIRS:
+                continue
+            if rel.as_posix() in _MEDIA_LUA_FILES:
                 continue
             stray.append(lua_file.relative_to(mod.path).as_posix())
     return sorted(stray)
 
+
+# Places PZ legitimately loads .lua from outside media/lua. Derived from the
+# base game, not guessed: vanilla ships spawnpoints.lua, objects.lua and
+# worldmap-annotations.lua under media/maps/, and sample code under
+# media/luaexamples/. media/registries.lua is the B42 file where mods call
+# ItemTag.register and ItemBodyLocation.register.
+_MEDIA_LUA_DIRS = {("lua",), ("maps",), ("luaexamples",)}
+_MEDIA_LUA_FILES = {"registries.lua"}
 
 _LUA_LONG_BRACKET = re.compile(r"--\[(=*)\[")
 
