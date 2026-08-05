@@ -34,14 +34,25 @@ class Rule:
     condition: dict[str, str] | None = None
     confidence: str = "likely"  # certain, likely, speculative
     group: str = ""  # rule group for collapsing related findings
+    fixed_in: str = ""  # upstream fixed it in this version; rule stops applying at and above it
 
     _since_version: PZVersion | None = field(default=None, init=False, repr=False)
+    _fixed_in_version: PZVersion | None = field(default=None, init=False, repr=False)
 
     @property
     def since_version(self) -> PZVersion:
         if self._since_version is None:
             self._since_version = PZVersion.parse(self.since)
         return self._since_version
+
+    @property
+    def fixed_in_version(self) -> PZVersion | None:
+        """Version that fixed this upstream, or None if it is still open."""
+        if not self.fixed_in:
+            return None
+        if self._fixed_in_version is None:
+            self._fixed_in_version = PZVersion.parse(self.fixed_in)
+        return self._fixed_in_version
 
 
 @dataclass
@@ -61,8 +72,18 @@ class RuleSet:
     no_comp: list[NoCompEntry] = field(default_factory=list)
 
     def rules_for_version(self, target: PZVersion) -> list[Rule]:
-        """Return rules applicable at or before the target version."""
-        return [r for r in self.rules if r.since_version <= target]
+        """Return rules that apply at the target version.
+
+        A rule applies once its `since` version is reached, and stops applying at
+        the version that fixed it upstream. Without the upper bound a hotfix
+        reversal keeps firing forever: 42.20.0 blocked mods writing .json and
+        42.20.1 restored it, so the rule is correct for exactly one build.
+        """
+        return [
+            r for r in self.rules
+            if r.since_version <= target
+            and (r.fixed_in_version is None or target < r.fixed_in_version)
+        ]
 
 
 def load_rules_from_dir(rules_dir: Path) -> list[Rule]:
@@ -110,8 +131,8 @@ def load_ruleset(data_dir: Path) -> RuleSet:
 
 
 _VALID_RULE_KEYS = {
-    "id", "type", "severity", "since", "description", "pattern", "regex",
-    "scan", "path", "check", "old_pattern", "new_name", "field",
+    "id", "type", "severity", "since", "fixed_in", "description", "pattern",
+    "regex", "scan", "path", "check", "old_pattern", "new_name", "field",
     "replacement", "context", "condition", "confidence", "group",
 }
 
@@ -159,6 +180,7 @@ def _parse_rule_block(block: dict[str, Any]) -> Rule | None:
         type=block.get("type", ""),
         severity=block.get("severity", "warning"),
         since=str(block.get("since", "")),
+        fixed_in=str(block.get("fixed_in", "")),
         description=block.get("description", ""),
         pattern=block.get("pattern", ""),
         regex=bool(regex_val),

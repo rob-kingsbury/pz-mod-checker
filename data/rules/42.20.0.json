@@ -49,6 +49,7 @@
       "severity": "breaking",
       "confidence": "certain",
       "since": "42.20.0",
+      "fixed_in": "42.20.1",
       "description": "getFileWriter refuses to open files with certain extensions in B42.20 and returns nil instead of a writer. Writing .json, .dat or .tmp fails; .txt, .ini and .cfg still work. Calling a method on the nil result throws 'attempted index: close of non-table: null'.",
       "pattern": "getFileWriter\\s*\\(\\s*[\"'][^\"']*\\.(json|dat|tmp)[\"']",
       "regex": true,
